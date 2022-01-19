@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+ 
+<head>
+    <style type="text/css">
+        .header{
+            text-align: center;
+            background-color: rgb(136, 185, 229);
+            height: 70px;
+            line-height: 70px;
+        }
+        .chart{
+            margin-top: 30px;
+            text-align: center;
+        }
+    </style>
+</head>
+ 
+<body>
+
+    <div class="header">
+        <h2>
+           Soil Information 
+        </h2>
+    </div>
+
+    <div id="SoilComposition" class="chart">
+    </div>
+
+    <div id="SoilProperties" class="chart">
+    </div>
+    <div>
+        <br>
+    </div>
+
+</body>
+    <!-- D3.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js"></script>
+    <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+    <!-- Plotly.js -->
+    <script src="https://d14fo0winaifog.cloudfront.net/plotly-basic.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+    <script type="text/javascript">
+        var graphs = {{soilBarChart | safe}};
+        Plotly.plot("SoilComposition",graphs);
+    </script>
+
+    <script type="text/javascript">
+        var graphs = {{soilPropTable | safe}};
+        Plotly.plot('SoilProperties',graphs,{});        
+    </script>
+</html>
