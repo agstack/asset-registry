@@ -1,6 +1,7 @@
 import geojson
 import json
 import shapely.wkt
+
 import pandas as pd
 from flask import Flask, render_template, jsonify, request, url_for
 import hashlib
@@ -20,9 +21,17 @@ import s2sphere as s2
 import s2cell
 import uuid
 import geopandas as gpd
+from sqlalchemy import create_engine
 
+import shapely.wkt as wkt
+from geoalchemy2 import Geometry, WKTElement
 
-
+global hostname
+global username
+global passwd
+global database
+global port
+global host
 
 
 ################  FUNCTIONS
@@ -192,7 +201,35 @@ def getLatLonList(user_fieldWKT, s2_fieldWKT):
 
 	return LatLonList
 
+
+def registerPolygonInDB(asset_df, GeoId):
+	tableName = 'asset_registry'
+	checkIfGeoIdExists(GeoId, tableName)
+
+	#To put the data for the asset
+	cmdStr = 'postgresql+psycopg2://'+username+':'+passwd+'@'+hostname+':'+port+'/'+database
+	#print(cmdStr)
+	engine = create_engine(cmdStr)
+	conn = engine.raw_connection()
+	cur = conn.cursor()
+
+
+	if not checkIfGeoIdExists(GeoId, tableName):
+		asset_df.to_sql(tableName, engine, if_exists='append', index=False, 
+			dtype={'GEOM_WKT': Geometry('POLYGON', srid= 4326)})
+			
+	conn.close()
+
+	return
+
 ###########################
+hostname = 'localhost'
+username = 'postgres'
+passwd = 'SUPERUSER'
+database = 'gisdb'
+port = '5432'
+host=hostname
+
 
 #create the app
 app = Flask(__name__)
@@ -360,6 +397,21 @@ def registerField():
 		#fieldRegistryDict['h3_normalizedFieldWKT']=H3new_poly_wkt
 		fieldRegistryDict['s2_normalizedFieldWKT']=S2new_poly_wkt
 
+		#construct the dataframe to store
+		asset_df = pd.DataFrame(columns=['uuid', 's2_cellid', 's2_fieldGeoId', 's2_normalizedFieldWKT',
+	   's2_resolution', 'GEOM_WKT'])
+		asset_df.loc[0,'uuid']=uid
+		asset_df.loc[0,'s2_cellid']=s2_cellid_token
+		asset_df.loc[0,'s2_fieldGeoId']=S2fieldBoundaryHash
+		asset_df.loc[0,'s2_normalizedFieldWKT']=S2new_poly_wkt
+		asset_df.loc[0,'s2_resolution']=s2_resolution_level
+		asset_df.loc[0,'GEOM_WKT']=S2new_poly_wkt
+
+		#asset_df['geometry'] = asset_df['GEOM_WKT'].apply(wkt.loads)
+		#gdf = gpd.GeoDataFrame(asset_df, geometry='geometry')
+
+		#store in the DB
+		registerPolygonInDB(asset_df, S2fieldBoundaryHash)
 
 		#create a json for the registration
 		fieldRegistryJSON = json.dumps(fieldRegistryDict, indent=4)
