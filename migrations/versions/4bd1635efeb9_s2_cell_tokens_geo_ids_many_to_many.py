@@ -1,8 +1,8 @@
-"""Lookup tables migration. Geo Ids, Cell Ids, Middle table.
+"""S2 cell tokens, Geo Ids many to many
 
-Revision ID: d48fb18842aa
+Revision ID: 4bd1635efeb9
 Revises: 
-Create Date: 2022-12-17 22:33:29.094348
+Create Date: 2022-12-20 00:39:48.252677
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'd48fb18842aa'
+revision = '4bd1635efeb9'
 down_revision = None
 branch_labels = None
 depends_on = None
