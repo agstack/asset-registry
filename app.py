@@ -39,6 +39,9 @@ def register_field_boundary():
     # s2_index__L13_list is a list of tokens(hex encoded version of the cell id)
     s2_index__l13_list = S2Service.wkt_to_cell_ids(field_wkt, resolution_level)
 
+    # fetching the new s2 cell tokens records for Resolution Level 13 in the database
+    records_list_s2_cell_tokens = Utils.records_s2_cell_tokens(s2_index__l13_list)
+
     # generate the geo_id only for `s2_index__l13_list`
     geo_id = Utils.generate_geo_id(s2_index__l13_list)
 
@@ -47,7 +50,7 @@ def register_field_boundary():
 
     # if geo id not registered, register it in the database
     if not geo_id_exists:
-        Utils.register_field_boundary(geo_id, s2_index__l13_list, resolution_level)
+        Utils.register_field_boundary(geo_id, s2_index__l13_list, records_list_s2_cell_tokens, resolution_level)
         return jsonify({
             "Message": "Field Boundary registered successfully.",
             "GEO ID": geo_id,

@@ -7,7 +7,7 @@ class GeoIds(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     geo_id = db.Column(db.String(), unique=True)
     geo_data = db.Column(db.JSON)
-    cell_geo_ids = db.relationship('CellsGeosMiddle', backref='geo_ids')
+    s2_cell_tokens = db.relationship('S2CellTokens', secondary='cells_geo_ids', backref='geo_ids')
 
     def __init__(self, geo_id, geo_data):
         self.geo_id = geo_id
