@@ -31,6 +31,9 @@ def convert_kml_to_wkt():
 
 @app.route('/register-field-boundary', methods=['POST'])
 def register_field_boundary():
+    """
+    Registering a field boundary against a Geo Id
+    """
     data = json.loads(request.data.decode('utf-8'))
     field_wkt = data.get('wkt')
     resolution_level = data.get('resolution_level')
@@ -60,3 +63,27 @@ def register_field_boundary():
         return jsonify({
             "Message": "Field Boundary already registered."
         })
+
+
+@app.route('/fetch-overlapping-fields', methods=['GET'])
+def fetch_overlapping_fields():
+    """
+    Fetch the overlapping fields for a certain threshold
+    Returning the fields Geo Ids
+    """
+    data = json.loads(request.data.decode('utf-8'))
+    field_wkt = data.get('wkt')
+    resolution_level = data.get('resolution_level')
+
+    # get the L13 indices
+    # s2_index__L13_list is a list of tokens(hex encoded version of the cell id)
+    s2_index__l13_list = S2Service.wkt_to_cell_ids(field_wkt, resolution_level)
+
+    # fetch geo ids for tokens and checking for the percentage match
+    matched_geo_ids = Utils.fetch_geo_ids_for_cell_tokens(s2_index__l13_list)
+    percentage_matched_geo_ids = Utils.check_percentage_match(matched_geo_ids, s2_index__l13_list, resolution_level)
+
+    return jsonify({
+        "Message": "The field Geo Ids with percentage match of at least 90%.",
+        "GEO Ids": percentage_matched_geo_ids
+    })
