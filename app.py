@@ -1,7 +1,7 @@
 import json
 import fiona
 import geopandas as gpd
-from flask import jsonify, request
+from flask import jsonify, request, make_response
 from flask_migrate import Migrate
 from db import app, db
 from s2_service import S2Service
@@ -54,15 +54,15 @@ def register_field_boundary():
     # if geo id not registered, register it in the database
     if not geo_id_exists:
         Utils.register_field_boundary(geo_id, s2_index__l13_list, records_list_s2_cell_tokens, resolution_level)
-        return jsonify({
+        return make_response(jsonify({
             "Message": "Field Boundary registered successfully.",
             "GEO ID": geo_id,
             "S2 Cell Tokens": s2_index__l13_list
-        })
+        }), 200)
     else:
-        return jsonify({
+        return make_response(jsonify({
             "Message": "Field Boundary already registered."
-        })
+        }), 200)
 
 
 @app.route('/fetch-overlapping-fields', methods=['GET'])
@@ -83,7 +83,27 @@ def fetch_overlapping_fields():
     matched_geo_ids = Utils.fetch_geo_ids_for_cell_tokens(s2_index__l13_list)
     percentage_matched_geo_ids = Utils.check_percentage_match(matched_geo_ids, s2_index__l13_list, resolution_level)
 
-    return jsonify({
+    return make_response(jsonify({
         "Message": "The field Geo Ids with percentage match of at least 90%.",
         "GEO Ids": percentage_matched_geo_ids
-    })
+    }), 200)
+
+
+@app.route('/fetch-field/<geo_id>', methods=['GET'])
+def fetch_field(geo_id):
+    """
+    Fetch a Field (S2 cell tokens) for the provided Geo Id
+    :param geo_id:
+    :return:
+    """
+    field = geoIdsModel.GeoIds.query \
+        .filter_by(geo_id=geo_id) \
+        .first()
+    if not field:
+        return make_response(jsonify({
+            "Message": "Field not found, invalid Geo Id."
+        }), 404)
+    return make_response(jsonify({
+        "Message": "Field fetched successfully.",
+        "GEO Ids": field.geo_data
+    }), 200)
