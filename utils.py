@@ -13,21 +13,25 @@ class Utils:
     """
 
     @staticmethod
-    def records_s2_cell_tokens(s2_cell_tokens: list):
+    def records_s2_cell_tokens(s2_cell_tokens_dict: dict):
         """
         creates database records for the s2 cell tokens
-        :param s2_cell_tokens:
+        :param s2_cell_tokens_dict:
         :return:
         """
-        all_saved_s2_cell_tokens = S2CellTokens.query.filter(S2CellTokens.cell_token.in_(set(s2_cell_tokens)))
-        all_saved_s2_cell_tokens = [r.cell_token for r in all_saved_s2_cell_tokens]
+        tokens_dict = {}
+        for res_level, s2_cell_tokens in s2_cell_tokens_dict.items():
+            all_saved_s2_cell_tokens = S2CellTokens.query.filter(S2CellTokens.cell_token.in_(set(s2_cell_tokens)))
+            all_saved_s2_cell_tokens = [r.cell_token for r in all_saved_s2_cell_tokens]
 
-        # checks for new S2 cell tokens to be added in the database and not repeating any
-        to_add_s2_cell_tokens = list(set(s2_cell_tokens) - set(all_saved_s2_cell_tokens))
-        records_list_s2_cell_tokens = []
-        for to_add_s2_cell_token in to_add_s2_cell_tokens:
-            records_list_s2_cell_tokens.append(S2CellTokens(cell_token=to_add_s2_cell_token))
-        return records_list_s2_cell_tokens
+            # checks for new S2 cell tokens to be added in the database and not repeating any
+            to_add_s2_cell_tokens = list(set(s2_cell_tokens) - set(all_saved_s2_cell_tokens))
+            records_list_s2_cell_tokens = []
+            for to_add_s2_cell_token in to_add_s2_cell_tokens:
+                records_list_s2_cell_tokens.append(S2CellTokens(cell_token=to_add_s2_cell_token))
+            # tokens_dict is a dictionary with structure e.g. {res_level: s2_cell_token_records_for_the_db}
+            tokens_dict[res_level] = records_list_s2_cell_tokens
+        return tokens_dict
 
     @staticmethod
     def generate_geo_id(s2_cell_tokens):
@@ -58,26 +62,30 @@ class Utils:
         return exists
 
     @staticmethod
-    def register_field_boundary(geo_id, s2_cell_tokens, records_list_s2_cell_tokens, resolution_level):
+    def register_field_boundary(geo_id, indices, records_list_s2_cell_tokens_dict):
         """
         registering the geo id (field boundary) in the database
         :param geo_id:
-        :param s2_cell_tokens:
-        :param records_list_s2_cell_tokens:
-        :param resolution_level:
+        :param indices:
+        :param records_list_s2_cell_tokens_dict:
         :return:
         """
-        geo_data = json.dumps({'s2_L' + str(resolution_level): s2_cell_tokens})
+        geo_data = {}
         geo_id_record = GeoIds(geo_id, geo_data)
-        # linking the s2 cell tokens and with the geo id for the middle table
-        for s2_cell_token_record in records_list_s2_cell_tokens:
-            geo_id_record.s2_cell_tokens.append(s2_cell_token_record)
+        # creating the json encoded geo_data for different resolution levels
+        for res_level, s2_cell_tokens_records in records_list_s2_cell_tokens_dict.items():
+            geo_data[res_level] = indices[res_level]
+            # linking the s2 cell token records with the geo id for the middle table
+            for s2_cell_token_record in s2_cell_tokens_records:
+                geo_id_record.s2_cell_tokens.append(s2_cell_token_record)
+        geo_data = json.dumps(geo_data)
+        geo_id_record.geo_data = geo_data
+        db.session.add_all(s2_cell_tokens_records)
 
         # populating the cell tokens, geo id and the middle table in the database
         db.session.add(geo_id_record)
-        db.session.add_all(records_list_s2_cell_tokens)
         db.session.commit()
-        return
+        return geo_data
 
     @staticmethod
     def fetch_geo_ids_for_cell_tokens(s2_cell_tokens):
@@ -105,7 +113,7 @@ class Utils:
         for matched_geo_id in matched_geo_ids:
             # fetch s2 cell tokens against a geo id
             geo_id_cell_tokens = json.loads(GeoIds.query.filter(GeoIds.geo_id == matched_geo_id).first().geo_data)[
-                's2_L' + str(resolution_level)]
+                str(resolution_level)]
             percentage_match = len(set(s2_index__l13_list) & set(geo_id_cell_tokens)) / float(
                 len(set(s2_index__l13_list) | set(geo_id_cell_tokens))) * 100
             # using 90% as the threshold
