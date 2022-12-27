@@ -1,6 +1,8 @@
 import json
 import hashlib
 
+import shapely
+
 from app import db
 from db.models.geoIdsModel import GeoIds
 from db.models.s2CellTokensModel import S2CellTokens
@@ -120,3 +122,20 @@ class Utils:
             if percentage_match > 90:
                 percentage_matched_geo_ids.append(matched_geo_id)
         return percentage_matched_geo_ids
+
+    @staticmethod
+    def is_valid_polygon(field_wkt):
+        """
+        Check if a valid polygon
+        :param field_wkt:
+        :return:
+        """
+        try:
+            poly = shapely.wkt.loads(field_wkt)
+            if poly.geom_type == 'Polygon':
+                return True
+            else:
+                return False
+        except Exception as e:
+            print(e)
+            return False
