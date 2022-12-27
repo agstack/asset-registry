@@ -1,5 +1,5 @@
 import json
-# import fiona
+import fiona
 import geopandas as gpd
 from flask import jsonify, request
 from flask_migrate import Migrate
@@ -16,17 +16,17 @@ from db.models import geoIdsModel, s2CellTokensModel, cellsGeosMiddleModel
 migrate = Migrate(app, db)
 
 
-# @app.route('/kml-to-wkt', methods=['POST'])
-# def convert_kml_to_wkt():
-#     kml_file = request.files.get('kml')
-#
-#     fiona.supported_drivers['KML'] = 'rw'
-#     f = fiona.BytesCollection(bytes(kml_file.content))
-#     df = gpd.GeoDataFrame()
-#
-#     gdf = gpd.read_file(kml_file, driver='KML')
-#     poly = gdf.geometry.iloc[0]  # shapely polygon
-#     wkt = poly.wkt
+@app.route('/kml-to-wkt', methods=['POST'])
+def convert_kml_to_wkt():
+    kml_file = request.files.get('kml')
+
+    fiona.supported_drivers['KML'] = 'rw'
+    f = fiona.BytesCollection(bytes(kml_file.content))
+    df = gpd.GeoDataFrame()
+
+    gdf = gpd.read_file(kml_file, driver='KML')
+    poly = gdf.geometry.iloc[0]  # shapely polygon
+    wkt = poly.wkt
 
 
 @app.route('/register-field-boundary', methods=['POST'])
@@ -70,10 +70,12 @@ def register_field_boundary():
             "Message": "Field Boundary already registered."
         })
 
+
 @app.route('/fetch-overlapping-fields', methods=['GET'])
 def fetch_overlapping_fields():
     """
     Fetch the overlapping fields for a certain threshold
+    Overlap is being checked for L13 Resolution Level
     Returning the fields Geo Ids
     """
     data = json.loads(request.data.decode('utf-8'))
