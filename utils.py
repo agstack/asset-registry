@@ -113,7 +113,7 @@ class Utils:
         for matched_geo_id in matched_geo_ids:
             # fetch s2 cell tokens against a geo id
             geo_id_cell_tokens = json.loads(GeoIds.query.filter(GeoIds.geo_id == matched_geo_id).first().geo_data)[
-                's2_L' + str(resolution_level)]
+                str(resolution_level)]
             percentage_match = len(set(s2_index__l13_list) & set(geo_id_cell_tokens)) / float(
                 len(set(s2_index__l13_list) | set(geo_id_cell_tokens))) * 100
             # using 90% as the threshold
