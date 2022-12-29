@@ -81,6 +81,7 @@ def fetch_overlapping_fields():
     data = json.loads(request.data.decode('utf-8'))
     field_wkt = data.get('wkt')
     resolution_level = data.get('resolution_level')
+    threshold = data.get('threshold')
 
     # get the L13 indices
     # s2_index__L13_list is a list of tokens(hex encoded version of the cell id)
@@ -88,7 +89,8 @@ def fetch_overlapping_fields():
 
     # fetch geo ids for tokens and checking for the percentage match
     matched_geo_ids = Utils.fetch_geo_ids_for_cell_tokens(s2_index__l13_list)
-    percentage_matched_geo_ids = Utils.check_percentage_match(matched_geo_ids, s2_index__l13_list, resolution_level)
+    percentage_matched_geo_ids = Utils.check_percentage_match(matched_geo_ids, s2_index__l13_list, resolution_level,
+                                                              threshold)
 
     return make_response(jsonify({
         "Message": "The field Geo Ids with percentage match of at least 90%.",
