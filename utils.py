@@ -103,12 +103,13 @@ class Utils:
         return geo_ids
 
     @staticmethod
-    def check_percentage_match(matched_geo_ids, s2_index__l13_list, resolution_level):
+    def check_percentage_match(matched_geo_ids, s2_index__l13_list, resolution_level, threshold):
         """
         Return the Geo Ids which overlap for a certain threshold
         :param matched_geo_ids:
         :param s2_index__l13_list:
         :param resolution_level:
+        :param threshold:
         :return:
         """
         percentage_matched_geo_ids = []
@@ -118,8 +119,7 @@ class Utils:
                 str(resolution_level)]
             percentage_match = len(set(s2_index__l13_list) & set(geo_id_cell_tokens)) / float(
                 len(set(s2_index__l13_list) | set(geo_id_cell_tokens))) * 100
-            # using 90% as the threshold
-            if percentage_match > 90:
+            if percentage_match > threshold:
                 percentage_matched_geo_ids.append(matched_geo_id)
         return percentage_matched_geo_ids
 
