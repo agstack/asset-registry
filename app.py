@@ -40,12 +40,12 @@ def register_field_boundary():
 
     # get the Different resolution level indices
     # list against a key (e.g. 13) is a list of tokens(hex encoded version of the cell id)
-    indices = {8: S2Service.wkt_to_cell_ids(field_wkt, 8),
-               13: S2Service.wkt_to_cell_ids(field_wkt, 13),
-               15: S2Service.wkt_to_cell_ids(field_wkt, 15),
-               18: S2Service.wkt_to_cell_ids(field_wkt, 18),
-               19: S2Service.wkt_to_cell_ids(field_wkt, 19),
-               20: S2Service.wkt_to_cell_ids(field_wkt, 20),
+    indices = {8: S2Service.wkt_to_cell_tokens(field_wkt, 8),
+               13: S2Service.wkt_to_cell_tokens(field_wkt, 13),
+               15: S2Service.wkt_to_cell_tokens(field_wkt, 15),
+               18: S2Service.wkt_to_cell_tokens(field_wkt, 18),
+               19: S2Service.wkt_to_cell_tokens(field_wkt, 19),
+               20: S2Service.wkt_to_cell_tokens(field_wkt, 20),
                }
 
     # fetching the new s2 cell tokens records for different Resolution Levels, to be added in the database
@@ -84,7 +84,7 @@ def fetch_overlapping_fields():
 
     # get the L13 indices
     # s2_index__L13_list is a list of tokens(hex encoded version of the cell id)
-    s2_index__l13_list = S2Service.wkt_to_cell_ids(field_wkt, resolution_level)
+    s2_index__l13_list = S2Service.wkt_to_cell_tokens(field_wkt, resolution_level)
 
     # fetch geo ids for tokens and checking for the percentage match
     matched_geo_ids = Utils.fetch_geo_ids_for_cell_tokens(s2_index__l13_list)

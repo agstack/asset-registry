@@ -1,5 +1,7 @@
+import shapely
 from shapely.wkt import loads
 import s2sphere as s2
+import geopandas as gpd
 
 
 class S2Service:
@@ -10,7 +12,7 @@ class S2Service:
     @staticmethod
     def wkt_to_cell_ids(field_wkt, resolution_level):
         """
-        fetches cell tokens from S2 for the provided wkt field
+        fetches cell ids from S2 for the provided wkt field
         """
         poly = loads(field_wkt)
 
@@ -31,8 +33,42 @@ class S2Service:
         lb = s2.LatLng.from_degrees(lb_lat, lb_lon)
         ub = s2.LatLng.from_degrees(ub_lat, ub_lon)
         cell_ids = r.get_covering(s2.LatLngRect.from_point_pair(lb, ub))
+
+        return cell_ids
+
+    @staticmethod
+    def wkt_to_cell_tokens(field_wkt, resolution_level):
+        """
+        fetches cell tokens from S2 for the provided wkt field
+        """
+        s2_cell_ids = S2Service.wkt_to_cell_ids(field_wkt, resolution_level)
         s2_token_list = []
-        for cell_id in cell_ids:
-            s2_token_list.append(cell_id.to_token())
+        for s2_cell_id in s2_cell_ids:
+            s2_token_list.append(s2_cell_id.to_token())
 
         return s2_token_list
+
+    @staticmethod
+    def get_boundary_coverage(s2_cell_ids, polygon, max_resolution_col_name):
+        """
+        returns lats and longs of the specific s2 cell ids
+        """
+        s2_index__l19_list = []
+        p_gdf = gpd.GeoDataFrame()
+        idx = 0
+        for s2_cell_id in s2_cell_ids:
+            s2_cell = s2.Cell(s2_cell_id)
+            vertices = []
+            for i in range(0, 4):
+                vertex = s2_cell.get_vertex(i)
+                latlng = s2.LatLng.from_point(vertex)
+                vertices.append((latlng.lng().degrees, latlng.lat().degrees))
+            geo = shapely.geometry.Polygon(vertices)
+            if polygon.intersects(geo):
+                s2_index__l19_list.append(s2_cell_id.to_token())
+                p_gdf.loc[idx, max_resolution_col_name] = s2_cell_id.to_token()
+                p_gdf.loc[idx, 'geometry'] = geo
+            idx += 1
+
+        p_gdf.reset_index(drop=True, inplace=True)
+        return p_gdf
