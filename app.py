@@ -36,7 +36,6 @@ def register_field_boundary():
     """
     data = json.loads(request.data.decode('utf-8'))
     field_wkt = data.get('wkt')
-    resolution_level = data.get('resolution_level')
 
     # get the Different resolution level indices
     # list against a key (e.g. 13) is a list of tokens(hex encoded version of the cell id)
@@ -115,4 +114,30 @@ def fetch_field(geo_id):
     return make_response(jsonify({
         "Message": "Field fetched successfully.",
         "GEO Ids": field.geo_data
+    }), 200)
+
+
+@app.route('/get-percentage-overlap-two-fields', methods=['POST'])
+def get_percentage_overlap_two_fields():
+    """
+    Passed in 2 GeoIDs, determine what is the % overlap of the 2 fields
+    :return:
+    """
+    try:
+        data = json.loads(request.data.decode('utf-8'))
+        geo_id_field_1 = data.get('geo_id_field_1')
+        geo_id_field_2 = data.get('geo_id_field_2')
+        if not geo_id_field_1 or not geo_id_field_2:
+            return make_response(jsonify({
+                "Message": "Two Geo Ids are required."
+            }), 400)
+
+        percentage_overlap = Utils.get_percentage_overlap_two_fields(geo_id_field_1, geo_id_field_2)
+    except AttributeError as error:
+        return make_response(jsonify({
+            "Message": str(error)
+        }), 404)
+
+    return make_response(jsonify({
+        "Percentage Overlap": str(percentage_overlap) + ' %'
     }), 200)
