@@ -139,3 +139,24 @@ class Utils:
         except Exception as e:
             print(e)
             return False
+
+    @staticmethod
+    def get_percentage_overlap_two_fields(geo_id_field_1, geo_id_field_2):
+        """
+        Determine what is the % overlap of the 2 fields
+        For Resolution Level 13
+        Getting overlap of smaller field from the larger one
+        :param geo_id_field_1:
+        :param geo_id_field_2:
+        :return:
+        """
+        try:
+            field_1 = set(json.loads(GeoIds.query.filter(GeoIds.geo_id == geo_id_field_1).first().geo_data)[
+                str('13')])
+            field_2 = set(json.loads(GeoIds.query.filter(GeoIds.geo_id == geo_id_field_2).first().geo_data)[
+                str('13')])
+            overlap = field_1 & field_2
+            percentage_overlap = (len(overlap) / len(field_1)) * 100 if len(field_1) > len(field_2) else (len(overlap) / len(field_2)) * 100
+        except AttributeError:
+            raise AttributeError('Please provide valid Geo Ids.')
+        return percentage_overlap
