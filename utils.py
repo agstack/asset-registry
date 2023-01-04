@@ -160,3 +160,21 @@ class Utils:
         except AttributeError:
             raise AttributeError('Please provide valid Geo Ids.')
         return percentage_overlap
+
+    @staticmethod
+    def fetch_fields_for_a_point(s2_cell_token_13, s2_cell_token_20):
+        """
+        Checks if token exists in L13, then further checks for L20
+        Returns the fields if token exists at both the levels
+        :param s2_cell_token_13:
+        :param s2_cell_token_20:
+        :return:
+        """
+        geo_ids = db.session.query(GeoIds.geo_id).distinct().join(CellsGeosMiddle).join(S2CellTokens).filter(S2CellTokens.cell_token == s2_cell_token_13)
+        geo_ids = [r.geo_id for r in geo_ids]
+        fields_to_return = []
+        for geo_id in geo_ids:
+            geo_data = json.loads(GeoIds.query.filter(GeoIds.geo_id == geo_id).first().geo_data)
+            if s2_cell_token_13 in geo_data['13'] and s2_cell_token_20 in geo_data['20']:
+                fields_to_return.append({geo_id: geo_data})
+        return fields_to_return

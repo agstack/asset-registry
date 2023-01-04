@@ -141,3 +141,31 @@ def get_percentage_overlap_two_fields():
     return make_response(jsonify({
         "Percentage Overlap": str(percentage_overlap) + ' %'
     }), 200)
+
+
+@app.route('/fetch-fields-for-a-point', methods=['POST'])
+def fetch_fields_for_a_point():
+    """
+    Fetch all the fields containing the point
+    Latitude and Longitude provided
+    Check for L13 and L20
+    Two stage search
+    :return:
+    """
+    try:
+        data = json.loads(request.data.decode('utf-8'))
+        lat = data.get('latitude')
+        long = data.get('longitude')
+        if not lat or not long:
+            return make_response(jsonify({
+                "Message": "Latitude and Longitude are required."
+            }), 400)
+        s2_cell_token_13, s2_cell_token_20 = S2Service.get_cell_token_for_lat_long(lat, long)
+        fetched_fields = Utils.fetch_fields_for_a_point(s2_cell_token_13, s2_cell_token_20)
+        return make_response(jsonify({
+            "Fetched fields": fetched_fields
+        }), 200)
+    except AttributeError as error:
+        return make_response(jsonify({
+            "Message": str(error)
+        }), 404)
