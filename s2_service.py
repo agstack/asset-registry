@@ -72,3 +72,16 @@ class S2Service:
 
         p_gdf.reset_index(drop=True, inplace=True)
         return p_gdf
+
+    @staticmethod
+    def get_cell_token_for_lat_long(lat, long):
+        """
+        Get the S2 cell tokens for the given lat and long
+        Fetching Resolution level 13 and 20 tokens
+        :param lat:
+        :param long:
+        :return:
+        """
+        s2_cell_token_13 = s2.Cell.from_lat_lng(s2.LatLng.from_degrees(lat, long)).id().parent(13).to_token()
+        s2_cell_token_20 = s2.Cell.from_lat_lng(s2.LatLng.from_degrees(lat, long)).id().parent(20).to_token()
+        return s2_cell_token_13, s2_cell_token_20
