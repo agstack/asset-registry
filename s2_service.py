@@ -10,7 +10,7 @@ class S2Service:
     """
 
     @staticmethod
-    def get_bounding_box_cell_ids(latitudes, longitudes, resolution_level=13):
+    def get_bounding_box_cell_ids(latitudes, longitudes, resolution_level):
         min_level = resolution_level
         max_level = resolution_level
         r = s2.RegionCoverer()
@@ -89,14 +89,15 @@ class S2Service:
         return s2_cell_token_13, s2_cell_token_20
 
     @staticmethod
-    def get_cell_tokens_for_bounding_box(latitudes, longitudes):
+    def get_cell_tokens_for_bounding_box(latitudes, longitudes, resolution_level=13):
         """
         Fetch the S2 cell tokens for the given Bounding Box
+        :param resolution_level:
         :param latitudes:
         :param longitudes:
         :return:
         """
-        s2_cell_ids = S2Service.get_bounding_box_cell_ids(latitudes, longitudes)
+        s2_cell_ids = S2Service.get_bounding_box_cell_ids(latitudes, longitudes, resolution_level)
         s2_token_list = []
         for s2_cell_id in s2_cell_ids:
             s2_token_list.append(s2_cell_id.to_token())
