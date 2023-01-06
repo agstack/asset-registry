@@ -89,7 +89,7 @@ def fetch_overlapping_fields():
                                                               threshold)
 
     return make_response(jsonify({
-        "Message": "The field Geo Ids with percentage match of at least 90%.",
+        "Message": "The field Geo Ids with percentage match of the given threshold.",
         "GEO Ids": percentage_matched_geo_ids
     }), 200)
 
@@ -182,8 +182,9 @@ def fetch_bounding_box_fields():
         return make_response(jsonify({
             "Message": "Latitudes and Longitudes are required."
         }), 400)
-    s2_cell_tokens = S2Service.get_cell_tokens_for_bounding_box(latitudes, longitudes)
-    fields = Utils.fetch_fields_for_cell_tokens(s2_cell_tokens)
+    s2_cell_tokens_13 = S2Service.get_cell_tokens_for_bounding_box(latitudes, longitudes)
+    s2_cell_tokens_20 = S2Service.get_cell_tokens_for_bounding_box(latitudes, longitudes, 20)
+    fields = Utils.fetch_fields_for_cell_tokens(s2_cell_tokens_13, s2_cell_tokens_20)
     return make_response(jsonify({
         "Message": fields
     }), 200)

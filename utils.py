@@ -145,7 +145,7 @@ class Utils:
     def get_percentage_overlap_two_fields(geo_id_field_1, geo_id_field_2):
         """
         Determine what is the % overlap of the 2 fields
-        For Resolution Level 13
+        For Resolution Level 20
         Getting overlap of smaller field from the larger one
         :param geo_id_field_1:
         :param geo_id_field_2:
@@ -153,9 +153,9 @@ class Utils:
         """
         try:
             field_1 = set(json.loads(GeoIds.query.filter(GeoIds.geo_id == geo_id_field_1).first().geo_data)[
-                str('13')])
+                str('20')])
             field_2 = set(json.loads(GeoIds.query.filter(GeoIds.geo_id == geo_id_field_2).first().geo_data)[
-                str('13')])
+                str('20')])
             overlap = field_1 & field_2
             percentage_overlap = (len(overlap) / len(field_1)) * 100 if len(field_1) > len(field_2) else (len(overlap) / len(field_2)) * 100
         except AttributeError:
@@ -163,10 +163,12 @@ class Utils:
         return percentage_overlap
 
     @staticmethod
-    def fetch_fields_for_cell_tokens(s2_cell_tokens_13):
+    def fetch_fields_for_cell_tokens(s2_cell_tokens_13, s2_cell_tokens_20):
         """
-        Checks if token exists in L13
+        Checks if token exists in L13 and L20
+        Two way search
         Fetch the fields
+        :param s2_cell_tokens_20:
         :param s2_cell_tokens_13:
         :return:
         """
@@ -176,8 +178,10 @@ class Utils:
             geo_ids = [r.geo_id for r in geo_ids]
         for geo_id in geo_ids:
             geo_data = json.loads(GeoIds.query.filter(GeoIds.geo_id == geo_id).first().geo_data)
-            if s2_cell_token_13 in geo_data['13']:
-                fields_to_return.append({geo_id: geo_data})
+            for s2_cell_token_20 in s2_cell_tokens_20:
+                if s2_cell_token_20 in geo_data['20']:
+                    fields_to_return.append({geo_id: geo_data})
+                    break
         return fields_to_return
 
     @staticmethod
