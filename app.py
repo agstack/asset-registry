@@ -48,17 +48,14 @@ def register_field_boundary():
                }
 
     # fetching the new s2 cell tokens records for different Resolution Levels, to be added in the database
-    records_list_s2_cell_tokens_dict = Utils.records_s2_cell_tokens(indices)
-
+    records_list_s2_cell_tokens_middle_table_dict = Utils.records_s2_cell_tokens(indices)
     # generate the geo_id only for `s2_index__l13_list`
     geo_id = Utils.generate_geo_id(indices[13])
-
     # lookup the database to see if geo id already exists
     geo_id_exists = Utils.lookup_geo_ids(geo_id)
-
     # if geo id not registered, register it in the database
     if not geo_id_exists:
-        geo_data = Utils.register_field_boundary(geo_id, indices, records_list_s2_cell_tokens_dict)
+        geo_data = Utils.register_field_boundary(geo_id, indices, records_list_s2_cell_tokens_middle_table_dict)
         return jsonify({
             "Message": "Field Boundary registered successfully.",
             "GEO ID": geo_id,
@@ -161,7 +158,7 @@ def fetch_fields_for_a_point():
                 "Message": "Latitude and Longitude are required."
             }), 400)
         s2_cell_token_13, s2_cell_token_20 = S2Service.get_cell_token_for_lat_long(lat, long)
-        fetched_fields = Utils.fetch_fields_for_a_point(s2_cell_token_13, s2_cell_token_20)
+        fetched_fields = Utils.fetch_fields_for_a_point_two_way(s2_cell_token_13, s2_cell_token_20)
         return make_response(jsonify({
             "Fetched fields": fetched_fields
         }), 200)
@@ -169,3 +166,24 @@ def fetch_fields_for_a_point():
         return make_response(jsonify({
             "Message": str(error)
         }), 404)
+
+
+@app.route('/fetch-bounding-box-fields', methods=['POST'])
+def fetch_bounding_box_fields():
+    """
+    Fetch the fields intersecting the Bounding Box
+    4 vertices are provided
+    :return:
+    """
+    data = json.loads(request.data.decode('utf-8'))
+    latitudes = list(map(float, data.get('latitudes').split(' ')))
+    longitudes = list(map(float, data.get('longitudes').split(' ')))
+    if not latitudes or not longitudes:
+        return make_response(jsonify({
+            "Message": "Latitudes and Longitudes are required."
+        }), 400)
+    s2_cell_tokens = S2Service.get_cell_tokens_for_bounding_box(latitudes, longitudes)
+    fields = Utils.fetch_fields_for_cell_tokens(s2_cell_tokens)
+    return make_response(jsonify({
+        "Message": fields
+    }), 200)

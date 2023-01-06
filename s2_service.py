@@ -10,30 +10,32 @@ class S2Service:
     """
 
     @staticmethod
-    def wkt_to_cell_ids(field_wkt, resolution_level):
-        """
-        fetches cell ids from S2 for the provided wkt field
-        """
-        poly = loads(field_wkt)
-
-        longs, lats = poly.exterior.coords.xy
-        longs, lats = longs.tolist(), lats.tolist()
-
+    def get_bounding_box_cell_ids(latitudes, longitudes, resolution_level=13):
         min_level = resolution_level
         max_level = resolution_level
         r = s2.RegionCoverer()
         r.min_level = min_level
         r.max_level = max_level
 
-        lb_lat = min(lats)
-        ub_lat = max(lats)
-        lb_lon = min(longs)
-        ub_lon = max(longs)
+        lb_lat = min(latitudes)
+        ub_lat = max(latitudes)
+        lb_lon = min(longitudes)
+        ub_lon = max(longitudes)
 
         lb = s2.LatLng.from_degrees(lb_lat, lb_lon)
         ub = s2.LatLng.from_degrees(ub_lat, ub_lon)
         cell_ids = r.get_covering(s2.LatLngRect.from_point_pair(lb, ub))
+        return cell_ids
 
+    @staticmethod
+    def wkt_to_cell_ids(field_wkt, resolution_level):
+        """
+        fetches cell ids from S2 for the provided wkt field
+        """
+        poly = loads(field_wkt)
+        longs, lats = poly.exterior.coords.xy
+        longs, lats = longs.tolist(), lats.tolist()
+        cell_ids = S2Service.get_bounding_box_cell_ids(lats, longs, resolution_level)
         return cell_ids
 
     @staticmethod
@@ -85,3 +87,17 @@ class S2Service:
         s2_cell_token_13 = s2.Cell.from_lat_lng(s2.LatLng.from_degrees(lat, long)).id().parent(13).to_token()
         s2_cell_token_20 = s2.Cell.from_lat_lng(s2.LatLng.from_degrees(lat, long)).id().parent(20).to_token()
         return s2_cell_token_13, s2_cell_token_20
+
+    @staticmethod
+    def get_cell_tokens_for_bounding_box(latitudes, longitudes):
+        """
+        Fetch the S2 cell tokens for the given Bounding Box
+        :param latitudes:
+        :param longitudes:
+        :return:
+        """
+        s2_cell_ids = S2Service.get_bounding_box_cell_ids(latitudes, longitudes)
+        s2_token_list = []
+        for s2_cell_id in s2_cell_ids:
+            s2_token_list.append(s2_cell_id.to_token())
+        return s2_token_list
