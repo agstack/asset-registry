@@ -188,3 +188,7 @@ def fetch_bounding_box_fields():
     return make_response(jsonify({
         "Message": fields
     }), 200)
+
+
+if __name__ == '__main__':
+    app.run()
