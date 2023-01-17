@@ -16,6 +16,21 @@ from db.models import geoIdsModel, s2CellTokensModel, cellsGeosMiddleModel
 migrate = Migrate(app, db)
 
 
+@app.route('/', methods=["POST"])
+def index():
+    """
+    Endpoint to receive tokens from user-registry and return a response
+    """
+    tokens = request.get_json(force=True)
+    print('Data from user-registry:', tokens)
+    if tokens['access_token'] is not None and tokens['refresh_token'] is not None:
+        status = 200
+    else:
+        status = 204
+    to_return = {'status': status}
+    return jsonify(to_return)
+
+
 @app.route('/kml-to-wkt', methods=['POST'])
 def convert_kml_to_wkt():
     kml_file = request.files.get('kml')
