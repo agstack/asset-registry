@@ -2,17 +2,73 @@ import json
 import hashlib
 
 import shapely
+import jwt
+from functools import wraps
+from flask import request, jsonify
+from localStoragePy import localStoragePy
 
 from app import db
+from db import app
 from db.models.geoIdsModel import GeoIds
 from db.models.s2CellTokensModel import S2CellTokens
 from db.models.cellsGeosMiddleModel import CellsGeosMiddle
+
+localStorage = localStoragePy('asset-registry', 'text')
 
 
 class Utils:
     """
     Utils class for helper functions
     """
+
+    # decorator for verifying  and fetching the JWT
+    @staticmethod
+    def fetch_token(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            try:
+                # jwt is passed in the request header
+                headers = request.headers
+                bearer = headers.get('Authorization')  # Bearer JWT token here
+                token = bearer.split()[1]  # JWT token
+                # return 401 if token is not passed
+                if not token:
+                    return jsonify({'message': 'Token is missing !!'}), 401
+
+                try:
+                    # decoding the payload to fetch the stored details
+                    jwt.decode(token, app.config['SECRET_KEY'], algorithms="HS256")
+                except:
+                    localStorage.clear()
+                    return jsonify({
+                        'message': 'Token is invalid !!'
+                    }), 401
+                return f(token, *args, **kwargs)
+            except:
+                return jsonify({
+                    'message': 'Authentication Error!'
+                }), 401
+
+        return decorated
+
+    # decorator for checking if valid token provided
+    @staticmethod
+    def token_required(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            token = localStorage.getItem('token')
+            print(token)
+            try:
+                # decoding the payload to check for valid token
+                jwt.decode(token, app.config['SECRET_KEY'], algorithms="HS256")
+            except:
+                localStorage.clear()
+                return jsonify({
+                    'message': 'Need to Login.'
+                }), 401
+            return f(*args, **kwargs)
+
+        return decorated
 
     @staticmethod
     def records_s2_cell_tokens(s2_cell_tokens_dict: dict):
@@ -79,7 +135,8 @@ class Utils:
                 if not S2CellTokens.query.filter(S2CellTokens.cell_token == s2_cell_token_record.cell_token).first():
                     geo_id_record.s2_cell_tokens.append(s2_cell_token_record)
                 else:
-                    s2_cell_token_from_db = S2CellTokens.query.filter(S2CellTokens.cell_token == s2_cell_token_record.cell_token).first()
+                    s2_cell_token_from_db = S2CellTokens.query.filter(
+                        S2CellTokens.cell_token == s2_cell_token_record.cell_token).first()
                     geo_id_record.s2_cell_tokens.append(s2_cell_token_from_db)
 
         geo_data = json.dumps(geo_data)
@@ -153,11 +210,13 @@ class Utils:
         """
         try:
             field_1 = set(json.loads(GeoIds.query.filter(GeoIds.geo_id == geo_id_field_1).first().geo_data)[
-                str('20')])
+                              str('20')])
             field_2 = set(json.loads(GeoIds.query.filter(GeoIds.geo_id == geo_id_field_2).first().geo_data)[
-                str('20')])
+                              str('20')])
             overlap = field_1 & field_2
-            percentage_overlap = (len(overlap) / len(field_1)) * 100 if len(field_1) > len(field_2) else (len(overlap) / len(field_2)) * 100
+            percentage_overlap = (len(overlap) / len(field_1)) * 100 if len(field_1) > len(field_2) else (
+                                                                                                                 len(overlap) / len(
+                                                                                                             field_2)) * 100
         except AttributeError:
             raise AttributeError('Please provide valid Geo Ids.')
         return percentage_overlap
@@ -174,7 +233,8 @@ class Utils:
         """
         fields_to_return = []
         for s2_cell_token_13 in s2_cell_tokens_13:
-            geo_ids = db.session.query(GeoIds.geo_id).distinct().join(CellsGeosMiddle).join(S2CellTokens).filter(S2CellTokens.cell_token == s2_cell_token_13)
+            geo_ids = db.session.query(GeoIds.geo_id).distinct().join(CellsGeosMiddle).join(S2CellTokens).filter(
+                S2CellTokens.cell_token == s2_cell_token_13)
             geo_ids = [r.geo_id for r in geo_ids]
         for geo_id in geo_ids:
             geo_data = json.loads(GeoIds.query.filter(GeoIds.geo_id == geo_id).first().geo_data)
@@ -193,7 +253,8 @@ class Utils:
         :param s2_cell_token_20:
         :return:
         """
-        geo_ids = db.session.query(GeoIds.geo_id).distinct().join(CellsGeosMiddle).join(S2CellTokens).filter(S2CellTokens.cell_token == s2_cell_token_13)
+        geo_ids = db.session.query(GeoIds.geo_id).distinct().join(CellsGeosMiddle).join(S2CellTokens).filter(
+            S2CellTokens.cell_token == s2_cell_token_13)
         geo_ids = [r.geo_id for r in geo_ids]
         fields_to_return = []
         for geo_id in geo_ids:

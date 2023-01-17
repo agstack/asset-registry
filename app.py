@@ -1,6 +1,7 @@
 import json
 import fiona
 import geopandas as gpd
+from localStoragePy import localStoragePy
 from flask import jsonify, request, make_response
 from flask_migrate import Migrate
 from db import app, db
@@ -10,10 +11,39 @@ from utils import Utils
 from dotenv import load_dotenv
 
 load_dotenv()
+localStorage = localStoragePy('asset-registry', 'text')
 
 from db.models import geoIdsModel, s2CellTokensModel, cellsGeosMiddleModel
 
 migrate = Migrate(app, db)
+
+
+@app.route('/', methods=["POST"])
+@Utils.fetch_token
+def index(token):
+    """
+    Endpoint to receive tokens from user-registry and return a response
+    """
+    try:
+        if token is not None:
+            localStorage.setItem('token', token)
+            status = 200
+        else:
+            status = 204
+        to_return = {'status': status}
+        return jsonify(to_return)
+    except:
+        return jsonify({
+            "Message": "Asset Registry error"
+        }), 400
+
+
+@app.route('/logout', methods=['GET'])
+def logout():
+    localStorage.clear()
+    return jsonify({
+        "Message": "Logged out successfully."
+    })
 
 
 @app.route('/kml-to-wkt', methods=['POST'])
@@ -30,6 +60,7 @@ def convert_kml_to_wkt():
 
 
 @app.route('/register-field-boundary', methods=['POST'])
+@Utils.token_required
 def register_field_boundary():
     """
     Registering a field boundary against a Geo Id
@@ -63,11 +94,13 @@ def register_field_boundary():
         })
     else:
         return make_response(jsonify({
-            "Message": "Field Boundary already registered."
+            "Message": f"Field Boundary already registered.",
+            "Geo Id": geo_id
         }), 200)
 
 
 @app.route('/fetch-overlapping-fields', methods=['GET'])
+@Utils.token_required
 def fetch_overlapping_fields():
     """
     Fetch the overlapping fields for a certain threshold
@@ -95,6 +128,7 @@ def fetch_overlapping_fields():
 
 
 @app.route('/fetch-field/<geo_id>', methods=['GET'])
+@Utils.token_required
 def fetch_field(geo_id):
     """
     Fetch a Field (S2 cell tokens) for the provided Geo Id
@@ -115,6 +149,7 @@ def fetch_field(geo_id):
 
 
 @app.route('/get-percentage-overlap-two-fields', methods=['POST'])
+@Utils.token_required
 def get_percentage_overlap_two_fields():
     """
     Passed in 2 GeoIDs, determine what is the % overlap of the 2 fields
@@ -141,6 +176,7 @@ def get_percentage_overlap_two_fields():
 
 
 @app.route('/fetch-fields-for-a-point', methods=['POST'])
+@Utils.token_required
 def fetch_fields_for_a_point():
     """
     Fetch all the fields containing the point
@@ -169,6 +205,7 @@ def fetch_fields_for_a_point():
 
 
 @app.route('/fetch-bounding-box-fields', methods=['POST'])
+@Utils.token_required
 def fetch_bounding_box_fields():
     """
     Fetch the fields intersecting the Bounding Box
