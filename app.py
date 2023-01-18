@@ -1,6 +1,7 @@
 import json
 import fiona
 import geopandas as gpd
+import requests
 from localStoragePy import localStoragePy
 from flask import jsonify, request, make_response
 from flask_migrate import Migrate
@@ -226,6 +227,19 @@ def fetch_bounding_box_fields():
         "Message": fields
     }), 200)
 
+
+@app.route("/domains", methods=['GET'])
+def fetch_all_domains():
+    """
+    Fetching all the domains from the User Registry
+    :return:
+    """
+    print(app.config['USER_REGISTRY_BASE_URL'] + '/domains')
+    res = requests.get(app.config['USER_REGISTRY_BASE_URL'] + '/domains', timeout=2)
+    return jsonify({
+        "Message": "All domains",
+        "Domains": res.json()['Domains']
+    }), 200
 
 if __name__ == '__main__':
     app.run()
