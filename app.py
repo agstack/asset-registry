@@ -1,6 +1,7 @@
 import json
 import fiona
 import geopandas as gpd
+import requests
 from localStoragePy import localStoragePy
 from flask import jsonify, request, make_response
 from flask_migrate import Migrate
@@ -105,19 +106,21 @@ def fetch_overlapping_fields():
     """
     Fetch the overlapping fields for a certain threshold
     Overlap is being checked for L13 Resolution Level
+    Optional domain parameter for filtering fields based on associated domain
     Returning the fields Geo Ids
     """
     data = json.loads(request.data.decode('utf-8'))
     field_wkt = data.get('wkt')
     resolution_level = data.get('resolution_level')
     threshold = data.get('threshold')
+    domain = data.get('domain')
 
     # get the L13 indices
     # s2_index__L13_list is a list of tokens(hex encoded version of the cell id)
     s2_index__l13_list = S2Service.wkt_to_cell_tokens(field_wkt, resolution_level)
 
     # fetch geo ids for tokens and checking for the percentage match
-    matched_geo_ids = Utils.fetch_geo_ids_for_cell_tokens(s2_index__l13_list)
+    matched_geo_ids = Utils.fetch_geo_ids_for_cell_tokens(s2_index__l13_list, domain)
     percentage_matched_geo_ids = Utils.check_percentage_match(matched_geo_ids, s2_index__l13_list, resolution_level,
                                                               threshold)
 
@@ -183,18 +186,20 @@ def fetch_fields_for_a_point():
     Latitude and Longitude provided
     Check for L13 and L20
     Two stage search
+    Optional domain parameter for filtering fields based on associated domain
     :return:
     """
     try:
         data = json.loads(request.data.decode('utf-8'))
         lat = data.get('latitude')
         long = data.get('longitude')
+        domain = data.get('domain')
         if not lat or not long:
             return make_response(jsonify({
                 "Message": "Latitude and Longitude are required."
             }), 400)
         s2_cell_token_13, s2_cell_token_20 = S2Service.get_cell_token_for_lat_long(lat, long)
-        fetched_fields = Utils.fetch_fields_for_a_point_two_way(s2_cell_token_13, s2_cell_token_20)
+        fetched_fields = Utils.fetch_fields_for_a_point_two_way(s2_cell_token_13, s2_cell_token_20, domain)
         return make_response(jsonify({
             "Fetched fields": fetched_fields
         }), 200)
@@ -226,6 +231,18 @@ def fetch_bounding_box_fields():
         "Message": fields
     }), 200)
 
+
+@app.route("/domains", methods=['GET'])
+def fetch_all_domains():
+    """
+    Fetching all the domains from the User Registry
+    :return:
+    """
+    res = requests.get(app.config['USER_REGISTRY_BASE_URL'] + '/domains', timeout=2)
+    return jsonify({
+        "Message": "All domains",
+        "Domains": res.json()['Domains']
+    }), 200
 
 if __name__ == '__main__':
     app.run()
