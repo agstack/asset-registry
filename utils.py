@@ -1,6 +1,7 @@
 import json
 import hashlib
 
+import requests
 import shapely
 import jwt
 from functools import wraps
@@ -57,7 +58,6 @@ class Utils:
         @wraps(f)
         def decorated(*args, **kwargs):
             token = localStorage.getItem('token')
-            print(token)
             try:
                 # decoding the payload to check for valid token
                 jwt.decode(token, app.config['SECRET_KEY'], algorithms="HS256")
@@ -126,7 +126,11 @@ class Utils:
         :return:
         """
         geo_data = {}
-        geo_id_record = GeoIds(geo_id, geo_data)
+        authority_token = None
+        domain = Utils.get_domain_from_jwt()
+        if domain:
+            authority_token = Utils.get_authority_token_for_domain(domain)
+        geo_id_record = GeoIds(geo_id, geo_data, authority_token)
         # creating the json encoded geo_data for different resolution levels
         for res_level, s2_cell_tokens_records in records_list_s2_cell_tokens_middle_table_dict.items():
             geo_data[res_level] = indices[res_level]
@@ -148,15 +152,24 @@ class Utils:
         return geo_data
 
     @staticmethod
-    def fetch_geo_ids_for_cell_tokens(s2_cell_tokens):
+    def fetch_geo_ids_for_cell_tokens(s2_cell_tokens, domain):
         """
         fetch the geo ids which at least have one token from the tokens list given
+        Optional domain filter
         :param s2_cell_tokens:
+        :param domain:
         :return:
         """
         # fetching the distinct geo ids for the cell tokens
-        geo_ids = db.session.query(GeoIds.geo_id).distinct().join(CellsGeosMiddle).join(S2CellTokens).filter(
-            S2CellTokens.cell_token.in_(set(s2_cell_tokens)))
+        geo_ids = []
+        if domain:
+            authority_token = Utils.get_authority_token_for_domain(domain)
+            if authority_token:
+                geo_ids = db.session.query(GeoIds.geo_id).distinct().join(CellsGeosMiddle).join(S2CellTokens).filter(
+                    S2CellTokens.cell_token.in_(set(s2_cell_tokens)), GeoIds.authority_token == authority_token)
+        else:
+            geo_ids = db.session.query(GeoIds.geo_id).distinct().join(CellsGeosMiddle).join(S2CellTokens).filter(
+                S2CellTokens.cell_token.in_(set(s2_cell_tokens)))
         geo_ids = [r.geo_id for r in geo_ids]
         return geo_ids
 
@@ -245,16 +258,25 @@ class Utils:
         return fields_to_return
 
     @staticmethod
-    def fetch_fields_for_a_point_two_way(s2_cell_token_13, s2_cell_token_20):
+    def fetch_fields_for_a_point_two_way(s2_cell_token_13, s2_cell_token_20, domain):
         """
         Checks if token exists in L13, then further checks for L20
         Returns the fields if token exists at both the levels
+        Optional domain filter
         :param s2_cell_token_13:
         :param s2_cell_token_20:
+        :param domain:
         :return:
         """
-        geo_ids = db.session.query(GeoIds.geo_id).distinct().join(CellsGeosMiddle).join(S2CellTokens).filter(
-            S2CellTokens.cell_token == s2_cell_token_13)
+        geo_ids = []
+        if domain:
+            authority_token = Utils.get_authority_token_for_domain(domain)
+            if authority_token:
+                geo_ids = db.session.query(GeoIds.geo_id).distinct().join(CellsGeosMiddle).join(S2CellTokens).filter(
+                    S2CellTokens.cell_token == s2_cell_token_13, GeoIds.authority_token == authority_token)
+        else:
+            geo_ids = db.session.query(GeoIds.geo_id).distinct().join(CellsGeosMiddle).join(S2CellTokens).filter(
+                S2CellTokens.cell_token == s2_cell_token_13)
         geo_ids = [r.geo_id for r in geo_ids]
         fields_to_return = []
         for geo_id in geo_ids:
@@ -262,3 +284,27 @@ class Utils:
             if s2_cell_token_13 in geo_data['13'] and s2_cell_token_20 in geo_data['20']:
                 fields_to_return.append({geo_id: geo_data})
         return fields_to_return
+
+    @staticmethod
+    def get_domain_from_jwt():
+        """
+        Get domain of the logged in user
+        :return:
+        """
+        token = localStorage.getItem('token')
+        if not token:
+            return None
+        domain = jwt.decode(token, app.config['SECRET_KEY'], algorithms="HS256")['domain']
+        return domain
+
+    @staticmethod
+    def get_authority_token_for_domain(domain):
+        """
+        Fetch the authority token against a domain from User Registry
+        :param domain:
+        :return:
+        """
+        res = requests.get(app.config['USER_REGISTRY_BASE_URL'] + f'/authority-token/?domain={domain}', timeout=2)
+        if 'Authority Token' in res.json().keys():
+            return res.json()['Authority Token']
+        return None
