@@ -1,11 +1,11 @@
 import json
-import fiona
+# import fiona
 import geopandas as gpd
 import requests
 from localStoragePy import localStoragePy
 from flask import jsonify, request, make_response
 from flask_migrate import Migrate
-from db import app, db
+from dbms import app, db
 from s2_service import S2Service
 from utils import Utils
 
@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 load_dotenv()
 localStorage = localStoragePy('asset-registry', 'text')
 
-from db.models import geoIdsModel, s2CellTokensModel, cellsGeosMiddleModel
+from dbms.models import geoIdsModel, s2CellTokensModel, cellsGeosMiddleModel
 
 migrate = Migrate(app, db)
 
@@ -52,17 +52,17 @@ def logout():
     })
 
 
-@app.route('/kml-to-wkt', methods=['POST'])
-def convert_kml_to_wkt():
-    kml_file = request.files.get('kml')
-
-    fiona.supported_drivers['KML'] = 'rw'
-    f = fiona.BytesCollection(bytes(kml_file.content))
-    df = gpd.GeoDataFrame()
-
-    gdf = gpd.read_file(kml_file, driver='KML')
-    poly = gdf.geometry.iloc[0]  # shapely polygon
-    wkt = poly.wkt
+# @app.route('/kml-to-wkt', methods=['POST'])
+# def convert_kml_to_wkt():
+#     kml_file = request.files.get('kml')
+#
+#     fiona.supported_drivers['KML'] = 'rw'
+#     f = fiona.BytesCollection(bytes(kml_file.content))
+#     df = gpd.GeoDataFrame()
+#
+#     gdf = gpd.read_file(kml_file, driver='KML')
+#     poly = gdf.geometry.iloc[0]  # shapely polygon
+#     wkt = poly.wkt
 
 
 @app.route('/register-field-boundary', methods=['POST'])

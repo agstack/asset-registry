@@ -1,4 +1,4 @@
-from app import db, app
+from dbms import db
 
 
 class S2CellTokens(db.Model):
