@@ -57,7 +57,6 @@ class Utils:
     def token_required(f):
         @wraps(f)
         def decorated(*args, **kwargs):
-<<<<<<< HEAD
             if request.is_json:
                 headers = request.headers
                 bearer = headers.get('Authorization')  # Bearer JWT token here
@@ -65,9 +64,6 @@ class Utils:
             else:
                 token = localStorage.getItem('token')
                 print(token)
-=======
-            token = localStorage.getItem('token')
->>>>>>> 01760294ee474f97c1bd0e556274e704e9f276e4
             try:
                 # decoding the payload to check for valid token
                 jwt.decode(token, app.config['SECRET_KEY'], algorithms="HS256")
