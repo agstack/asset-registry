@@ -25,6 +25,11 @@ def index(token):
     """
     Endpoint to receive tokens from user-registry and return a response
     """
+    if request.is_json:
+        if token is not None:
+            return jsonify({"token": token})
+        else:
+            return jsonify({'message': 'No token found'})
     try:
         if token is not None:
             localStorage.setItem('token', token)
