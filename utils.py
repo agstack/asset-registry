@@ -63,7 +63,6 @@ class Utils:
                 token = bearer.split()[1]  # JWT token
             else:
                 token = localStorage.getItem('token')
-                print(token)
             try:
                 # decoding the payload to check for valid token
                 jwt.decode(token, app.config['SECRET_KEY'], algorithms="HS256")
