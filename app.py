@@ -19,7 +19,7 @@ from db.models import geoIdsModel, s2CellTokensModel, cellsGeosMiddleModel
 migrate = Migrate(app, db)
 
 
-@app.route('/', methods=["POST"])
+@app.route('/', methods=["GET"])
 @Utils.fetch_token
 def index(token):
     """
