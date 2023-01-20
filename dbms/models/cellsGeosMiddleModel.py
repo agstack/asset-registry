@@ -1,4 +1,4 @@
-from app import db, app
+from dbms import db
 
 
 class CellsGeosMiddle(db.Model):

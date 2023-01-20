@@ -8,11 +8,10 @@ from functools import wraps
 from flask import request, jsonify
 from localStoragePy import localStoragePy
 
-from app import db
-from db import app
-from db.models.geoIdsModel import GeoIds
-from db.models.s2CellTokensModel import S2CellTokens
-from db.models.cellsGeosMiddleModel import CellsGeosMiddle
+from dbms import app, db
+from dbms.models.geoIdsModel import GeoIds
+from dbms.models.s2CellTokensModel import S2CellTokens
+from dbms.models.cellsGeosMiddleModel import CellsGeosMiddle
 
 localStorage = localStoragePy('asset-registry', 'text')
 
