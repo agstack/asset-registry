@@ -61,8 +61,18 @@ class Utils:
                 headers = request.headers
                 bearer = headers.get('Authorization')  # Bearer JWT token here
                 token = bearer.split()[1]  # JWT token
+                return jsonify({
+                    'message': 'TOKEN Required ::: IN JSON Request',
+                    'secret': app.config['SECRET_KEY'],
+                    'token': token
+                }), 401
             else:
                 token = localStorage.getItem('token')
+                return jsonify({
+                    'message': 'TOKEN Required :::',
+                    'secret': app.config['SECRET_KEY'],
+
+                }), 401
             try:
                 # decoding the payload to check for valid token
                 jwt.decode(token, app.config['SECRET_KEY'], algorithms="HS256")
