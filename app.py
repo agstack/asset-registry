@@ -45,6 +45,7 @@ def index(token):
 
 
 @app.route('/logout', methods=['GET'])
+@Utils.token_required
 def logout():
     localStorage.clear()
     return jsonify({
@@ -73,6 +74,10 @@ def register_field_boundary():
     """
     data = json.loads(request.data.decode('utf-8'))
     field_wkt = data.get('wkt')
+    s2_index = data.get('s2_index')
+    if s2_index:
+        s2_index_to_fetch = [int(i) for i in (data.get('s2_index')).split(',')]
+        s2_indexes_to_remove = Utils.get_s2_indexes_to_remove(s2_index_to_fetch)
 
     # get the Different resolution level indices
     # list against a key (e.g. 13) is a list of tokens(hex encoded version of the cell id)
@@ -92,11 +97,14 @@ def register_field_boundary():
     geo_id_exists = Utils.lookup_geo_ids(geo_id)
     # if geo id not registered, register it in the database
     if not geo_id_exists:
+        geo_data_to_return = None
         geo_data = Utils.register_field_boundary(geo_id, indices, records_list_s2_cell_tokens_middle_table_dict)
+        if s2_index and s2_indexes_to_remove != -1:
+            geo_data_to_return = Utils.get_specific_s2_index_geo_data(geo_data, s2_indexes_to_remove)
         return jsonify({
             "Message": "Field Boundary registered successfully.",
             "GEO ID": geo_id,
-            "S2 Cell Tokens": geo_data
+            "S2 Cell Tokens": geo_data_to_return
         })
     else:
         return make_response(jsonify({
@@ -136,13 +144,18 @@ def fetch_overlapping_fields():
 
 
 @app.route('/fetch-field/<geo_id>', methods=['GET'])
-@Utils.token_required
 def fetch_field(geo_id):
     """
     Fetch a Field (S2 cell tokens) for the provided Geo Id
     :param geo_id:
     :return:
     """
+    s2_index_to_fetch = None
+    args = request.args
+    if args.getlist('s2_index') and args.getlist('s2_index')[0]:
+        s2_index_to_fetch = [int(i) for i in (args.getlist('s2_index')[0]).split(',')]
+    if s2_index_to_fetch:
+        s2_indexes_to_remove = Utils.get_s2_indexes_to_remove(s2_index_to_fetch)
     field = geoIdsModel.GeoIds.query \
         .filter_by(geo_id=geo_id) \
         .first()
@@ -150,14 +163,17 @@ def fetch_field(geo_id):
         return make_response(jsonify({
             "Message": "Field not found, invalid Geo Id."
         }), 404)
+    geo_data = None
+    if s2_index_to_fetch and s2_indexes_to_remove != -1:
+        geo_data = Utils.get_specific_s2_index_geo_data(field.geo_data, s2_indexes_to_remove)
     return make_response(jsonify({
         "Message": "Field fetched successfully.",
-        "GEO Ids": field.geo_data
+        "GEO Id": geo_id,
+        "Geo Data": geo_data
     }), 200)
 
 
 @app.route('/get-percentage-overlap-two-fields', methods=['POST'])
-@Utils.token_required
 def get_percentage_overlap_two_fields():
     """
     Passed in 2 GeoIDs, determine what is the % overlap of the 2 fields
@@ -199,12 +215,13 @@ def fetch_fields_for_a_point():
         lat = data.get('latitude')
         long = data.get('longitude')
         domain = data.get('domain')
+        s2_index = data.get('s2_index')
         if not lat or not long:
             return make_response(jsonify({
                 "Message": "Latitude and Longitude are required."
             }), 400)
         s2_cell_token_13, s2_cell_token_20 = S2Service.get_cell_token_for_lat_long(lat, long)
-        fetched_fields = Utils.fetch_fields_for_a_point_two_way(s2_cell_token_13, s2_cell_token_20, domain)
+        fetched_fields = Utils.fetch_fields_for_a_point_two_way(s2_cell_token_13, s2_cell_token_20, domain, s2_index)
         return make_response(jsonify({
             "Fetched fields": fetched_fields
         }), 200)
@@ -225,13 +242,14 @@ def fetch_bounding_box_fields():
     data = json.loads(request.data.decode('utf-8'))
     latitudes = list(map(float, data.get('latitudes').split(' ')))
     longitudes = list(map(float, data.get('longitudes').split(' ')))
+    s2_index = data.get('s2_index')
     if not latitudes or not longitudes:
         return make_response(jsonify({
             "Message": "Latitudes and Longitudes are required."
         }), 400)
     s2_cell_tokens_13 = S2Service.get_cell_tokens_for_bounding_box(latitudes, longitudes)
     s2_cell_tokens_20 = S2Service.get_cell_tokens_for_bounding_box(latitudes, longitudes, 20)
-    fields = Utils.fetch_fields_for_cell_tokens(s2_cell_tokens_13, s2_cell_tokens_20)
+    fields = Utils.fetch_fields_for_cell_tokens(s2_cell_tokens_13, s2_cell_tokens_20, s2_index)
     return make_response(jsonify({
         "Message": fields
     }), 200)
