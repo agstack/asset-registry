@@ -56,10 +56,12 @@ class Utils:
     def token_required(f):
         @wraps(f)
         def decorated(*args, **kwargs):
+            token = None
             if request.is_json:
                 headers = request.headers
                 bearer = headers.get('Authorization')  # Bearer JWT token here
-                token = bearer.split()[1]  # JWT token
+                if bearer:
+                    token = bearer.split()[1]  # JWT token
             else:
                 token = localStorage.getItem('token')
             try:
@@ -240,30 +242,37 @@ class Utils:
         return percentage_overlap
 
     @staticmethod
-    def fetch_fields_for_cell_tokens(s2_cell_tokens_13, s2_cell_tokens_20):
+    def fetch_fields_for_cell_tokens(s2_cell_tokens_13, s2_cell_tokens_20, s2_index=None):
         """
         Checks if token exists in L13 and L20
         Two way search
         Fetch the fields
         :param s2_cell_tokens_20:
         :param s2_cell_tokens_13:
+        :param s2_index:
         :return:
         """
         fields_to_return = []
+        if s2_index:
+            s2_index_to_fetch = [int(i) for i in s2_index.split(',')]
+            s2_indexes_to_remove = Utils.get_s2_indexes_to_remove(s2_index_to_fetch)
         for s2_cell_token_13 in s2_cell_tokens_13:
             geo_ids = db.session.query(GeoIds.geo_id).distinct().join(CellsGeosMiddle).join(S2CellTokens).filter(
                 S2CellTokens.cell_token == s2_cell_token_13)
             geo_ids = [r.geo_id for r in geo_ids]
         for geo_id in geo_ids:
             geo_data = json.loads(GeoIds.query.filter(GeoIds.geo_id == geo_id).first().geo_data)
+            geo_data_to_return = None
+            if s2_index and s2_indexes_to_remove is not -1:
+                geo_data_to_return = Utils.get_specific_s2_index_geo_data(json.dumps(geo_data), s2_indexes_to_remove)
             for s2_cell_token_20 in s2_cell_tokens_20:
                 if s2_cell_token_20 in geo_data['20']:
-                    fields_to_return.append({geo_id: geo_data})
+                    fields_to_return.append({geo_id: geo_data_to_return})
                     break
         return fields_to_return
 
     @staticmethod
-    def fetch_fields_for_a_point_two_way(s2_cell_token_13, s2_cell_token_20, domain):
+    def fetch_fields_for_a_point_two_way(s2_cell_token_13, s2_cell_token_20, domain, s2_index=None):
         """
         Checks if token exists in L13, then further checks for L20
         Returns the fields if token exists at both the levels
@@ -271,9 +280,13 @@ class Utils:
         :param s2_cell_token_13:
         :param s2_cell_token_20:
         :param domain:
+        :param s2_index:
         :return:
         """
         geo_ids = []
+        if s2_index:
+            s2_index_to_fetch = [int(i) for i in s2_index.split(',')]
+            s2_indexes_to_remove = Utils.get_s2_indexes_to_remove(s2_index_to_fetch)
         if domain:
             authority_token = Utils.get_authority_token_for_domain(domain)
             if authority_token:
@@ -285,9 +298,12 @@ class Utils:
         geo_ids = [r.geo_id for r in geo_ids]
         fields_to_return = []
         for geo_id in geo_ids:
+            geo_data_to_return = None
             geo_data = json.loads(GeoIds.query.filter(GeoIds.geo_id == geo_id).first().geo_data)
+            if s2_index and s2_indexes_to_remove is not -1:
+                geo_data_to_return = Utils.get_specific_s2_index_geo_data(json.dumps(geo_data), s2_indexes_to_remove)
             if s2_cell_token_13 in geo_data['13'] and s2_cell_token_20 in geo_data['20']:
-                fields_to_return.append({geo_id: geo_data})
+                fields_to_return.append({geo_id: geo_data_to_return})
         return fields_to_return
 
     @staticmethod
@@ -310,6 +326,33 @@ class Utils:
         :return:
         """
         res = requests.get(app.config['USER_REGISTRY_BASE_URL'] + f'/authority-token/?domain={domain}', timeout=2)
-        if 'Authority Token' in res.json().keys():
+        if res and res.json() and res.json().keys() and 'Authority Token' in res.json().keys():
             return res.json()['Authority Token']
         return None
+
+    @staticmethod
+    def get_s2_indexes_to_remove(s2_indexes):
+        """
+        Fetches the S2 indexes from the given list, which are not required in the JSON response
+        :param s2_indexes:
+        :return:
+        """
+        valid_s2_indexes_set = set([8, 13, 15, 18, 19, 20])
+        s2_indexes_set = set(s2_indexes)
+        if valid_s2_indexes_set & s2_indexes_set:
+            return list(valid_s2_indexes_set - s2_indexes_set)
+        else:
+            return -1
+
+    @staticmethod
+    def get_specific_s2_index_geo_data(geo_data, s2_indexes_to_remove):
+        """
+        Get only specific S2 indexes data in geo_data (json data)
+        :param geo_data:
+        :param s2_indexes_to_remove:
+        :return:
+        """
+        geo_data = json.loads(geo_data)
+        for key in s2_indexes_to_remove:
+            del geo_data[str(key)]
+        return geo_data
