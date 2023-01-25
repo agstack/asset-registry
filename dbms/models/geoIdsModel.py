@@ -4,7 +4,7 @@ from dbms import db
 class GeoIds(db.Model):
     __tablename__ = 'geo_ids'
 
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, index=True)
     geo_id = db.Column(db.String(), unique=True)
     authority_token = db.Column(db.String())
     geo_data = db.Column(db.JSON)
