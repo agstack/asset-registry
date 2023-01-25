@@ -263,7 +263,7 @@ class Utils:
         for geo_id in geo_ids:
             geo_data = json.loads(GeoIds.query.filter(GeoIds.geo_id == geo_id).first().geo_data)
             geo_data_to_return = None
-            if s2_index and s2_indexes_to_remove is not -1:
+            if s2_index and s2_indexes_to_remove != -1:
                 geo_data_to_return = Utils.get_specific_s2_index_geo_data(json.dumps(geo_data), s2_indexes_to_remove)
             for s2_cell_token_20 in s2_cell_tokens_20:
                 if s2_cell_token_20 in geo_data['20']:
@@ -300,7 +300,7 @@ class Utils:
         for geo_id in geo_ids:
             geo_data_to_return = None
             geo_data = json.loads(GeoIds.query.filter(GeoIds.geo_id == geo_id).first().geo_data)
-            if s2_index and s2_indexes_to_remove is not -1:
+            if s2_index and s2_indexes_to_remove != -1:
                 geo_data_to_return = Utils.get_specific_s2_index_geo_data(json.dumps(geo_data), s2_indexes_to_remove)
             if s2_cell_token_13 in geo_data['13'] and s2_cell_token_20 in geo_data['20']:
                 fields_to_return.append({geo_id: geo_data_to_return})

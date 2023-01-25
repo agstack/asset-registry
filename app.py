@@ -72,45 +72,51 @@ def register_field_boundary():
     """
     Registering a field boundary against a Geo Id
     """
-    data = json.loads(request.data.decode('utf-8'))
-    field_wkt = data.get('wkt')
-    s2_index = data.get('s2_index')
-    if s2_index:
-        s2_index_to_fetch = [int(i) for i in (data.get('s2_index')).split(',')]
-        s2_indexes_to_remove = Utils.get_s2_indexes_to_remove(s2_index_to_fetch)
+    try:
+        data = json.loads(request.data.decode('utf-8'))
+        field_wkt = data.get('wkt')
+        s2_index = data.get('s2_index')
+        if s2_index:
+            s2_index_to_fetch = [int(i) for i in (data.get('s2_index')).split(',')]
+            s2_indexes_to_remove = Utils.get_s2_indexes_to_remove(s2_index_to_fetch)
 
-    # get the Different resolution level indices
-    # list against a key (e.g. 13) is a list of tokens(hex encoded version of the cell id)
-    indices = {8: S2Service.wkt_to_cell_tokens(field_wkt, 8),
-               13: S2Service.wkt_to_cell_tokens(field_wkt, 13),
-               15: S2Service.wkt_to_cell_tokens(field_wkt, 15),
-               18: S2Service.wkt_to_cell_tokens(field_wkt, 18),
-               19: S2Service.wkt_to_cell_tokens(field_wkt, 19),
-               20: S2Service.wkt_to_cell_tokens(field_wkt, 20),
-               }
+        # get the Different resolution level indices
+        # list against a key (e.g. 13) is a list of tokens(hex encoded version of the cell id)
+        indices = {8: S2Service.wkt_to_cell_tokens(field_wkt, 8),
+                   13: S2Service.wkt_to_cell_tokens(field_wkt, 13),
+                   15: S2Service.wkt_to_cell_tokens(field_wkt, 15),
+                   18: S2Service.wkt_to_cell_tokens(field_wkt, 18),
+                   19: S2Service.wkt_to_cell_tokens(field_wkt, 19),
+                   20: S2Service.wkt_to_cell_tokens(field_wkt, 20),
+                   }
 
-    # fetching the new s2 cell tokens records for different Resolution Levels, to be added in the database
-    records_list_s2_cell_tokens_middle_table_dict = Utils.records_s2_cell_tokens(indices)
-    # generate the geo_id only for `s2_index__l13_list`
-    geo_id = Utils.generate_geo_id(indices[13])
-    # lookup the database to see if geo id already exists
-    geo_id_exists = Utils.lookup_geo_ids(geo_id)
-    # if geo id not registered, register it in the database
-    if not geo_id_exists:
-        geo_data_to_return = None
-        geo_data = Utils.register_field_boundary(geo_id, indices, records_list_s2_cell_tokens_middle_table_dict)
-        if s2_index and s2_indexes_to_remove != -1:
-            geo_data_to_return = Utils.get_specific_s2_index_geo_data(geo_data, s2_indexes_to_remove)
+        # fetching the new s2 cell tokens records for different Resolution Levels, to be added in the database
+        records_list_s2_cell_tokens_middle_table_dict = Utils.records_s2_cell_tokens(indices)
+        # generate the geo_id only for `s2_index__l13_list`
+        geo_id = Utils.generate_geo_id(indices[13])
+        # lookup the database to see if geo id already exists
+        geo_id_exists = Utils.lookup_geo_ids(geo_id)
+        # if geo id not registered, register it in the database
+        if not geo_id_exists:
+            geo_data_to_return = None
+            geo_data = Utils.register_field_boundary(geo_id, indices, records_list_s2_cell_tokens_middle_table_dict)
+            if s2_index and s2_indexes_to_remove != -1:
+                geo_data_to_return = Utils.get_specific_s2_index_geo_data(geo_data, s2_indexes_to_remove)
+            return jsonify({
+                "Message": "Field Boundary registered successfully.",
+                "GEO ID": geo_id,
+                "S2 Cell Tokens": geo_data_to_return
+            })
+        else:
+            return make_response(jsonify({
+                "Message": f"Field Boundary already registered.",
+                "Geo Id": geo_id
+            }), 200)
+    except Exception as e:
         return jsonify({
-            "Message": "Field Boundary registered successfully.",
-            "GEO ID": geo_id,
-            "S2 Cell Tokens": geo_data_to_return
-        })
-    else:
-        return make_response(jsonify({
-            "Message": f"Field Boundary already registered.",
-            "Geo Id": geo_id
-        }), 200)
+            'message': 'Register Field Boundary Error',
+            'error': f'{e}'
+        }), 401
 
 
 @app.route('/fetch-overlapping-fields', methods=['GET'])
