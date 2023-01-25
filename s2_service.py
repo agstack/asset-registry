@@ -32,23 +32,30 @@ class S2Service:
         """
         fetches cell ids from S2 for the provided wkt field
         """
-        poly = loads(field_wkt)
-        longs, lats = poly.exterior.coords.xy
-        longs, lats = longs.tolist(), lats.tolist()
-        cell_ids = S2Service.get_bounding_box_cell_ids(lats, longs, resolution_level)
-        return cell_ids
+        try:
+            poly = loads(field_wkt)
+            longs, lats = poly.exterior.coords.xy
+            longs, lats = longs.tolist(), lats.tolist()
+            cell_ids = S2Service.get_bounding_box_cell_ids(lats, longs, resolution_level)
+            return cell_ids
+        except Exception as e:
+            raise Exception(e)
+
 
     @staticmethod
     def wkt_to_cell_tokens(field_wkt, resolution_level):
         """
         fetches cell tokens from S2 for the provided wkt field
         """
-        s2_cell_ids = S2Service.wkt_to_cell_ids(field_wkt, resolution_level)
-        s2_token_list = []
-        for s2_cell_id in s2_cell_ids:
-            s2_token_list.append(s2_cell_id.to_token())
+        try:
+            s2_cell_ids = S2Service.wkt_to_cell_ids(field_wkt, resolution_level)
+            s2_token_list = []
+            for s2_cell_id in s2_cell_ids:
+                s2_token_list.append(s2_cell_id.to_token())
 
-        return s2_token_list
+            return s2_token_list
+        except Exception as e:
+            raise Exception(e)
 
     @staticmethod
     def get_boundary_coverage(s2_cell_ids, polygon, max_resolution_col_name):
