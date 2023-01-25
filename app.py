@@ -99,7 +99,8 @@ def register_field_boundary():
         # if geo id not registered, register it in the database
         if not geo_id_exists:
             geo_data_to_return = None
-            geo_data = Utils.register_field_boundary(geo_id, indices, records_list_s2_cell_tokens_middle_table_dict)
+            geo_data = Utils.register_field_boundary(geo_id, indices, records_list_s2_cell_tokens_middle_table_dict,
+                                                     field_wkt)
             if s2_index and s2_indexes_to_remove != -1:
                 geo_data_to_return = Utils.get_specific_s2_index_geo_data(geo_data, s2_indexes_to_remove)
             return jsonify({
@@ -177,6 +178,33 @@ def fetch_field(geo_id):
         "GEO Id": geo_id,
         "Geo Data": geo_data
     }), 200)
+
+
+@app.route('/fetch-field-wkt/<geo_id>', methods=['GET'])
+def fetch_field_wkt(geo_id):
+    """
+    Fetch a Field WKT for the provided Geo Id
+    :param geo_id:
+    :return:
+    """
+    try:
+        field = geoIdsModel.GeoIds.query \
+            .filter_by(geo_id=geo_id) \
+            .first()
+        if not field:
+            return make_response(jsonify({
+                "Message": "Field not found, invalid Geo Id."
+            }), 404)
+        return make_response(jsonify({
+            "Message": "WKT fetched successfully.",
+            "GEO Id": geo_id,
+            "WKT": json.loads(field.geo_data)['wkt']
+        }), 200)
+    except Exception as e:
+        return jsonify({
+            'message': 'Fetch Field WKT Error',
+            'error': f'{e}'
+        }), 401
 
 
 @app.route('/get-percentage-overlap-two-fields', methods=['POST'])
