@@ -4,7 +4,7 @@ from dbms import db
 class CellsGeosMiddle(db.Model):
     __tablename__ = 'cells_geo_ids'
 
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, index=True)
     geo_id = db.Column(db.Integer, db.ForeignKey('geo_ids.id'))
     cell_id = db.Column(db.Integer, db.ForeignKey('s2_cell_tokens.id'))
 
