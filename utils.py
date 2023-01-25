@@ -124,15 +124,16 @@ class Utils:
         return exists
 
     @staticmethod
-    def register_field_boundary(geo_id, indices, records_list_s2_cell_tokens_middle_table_dict):
+    def register_field_boundary(geo_id, indices, records_list_s2_cell_tokens_middle_table_dict, field_wkt):
         """
         registering the geo id (field boundary) in the database
         :param geo_id:
         :param indices:
         :param records_list_s2_cell_tokens_middle_table_dict:
+        :param field_wkt:
         :return:
         """
-        geo_data = {}
+        geo_data = {'wkt': field_wkt}
         authority_token = None
         domain = Utils.get_domain_from_jwt()
         if domain:
