@@ -143,14 +143,11 @@ class Utils:
         for res_level, s2_cell_tokens_records in records_list_s2_cell_tokens_middle_table_dict.items():
             geo_data[res_level] = indices[res_level]
             # linking the s2 cell token records with the geo id for the middle table
-            for s2_cell_token_record in s2_cell_tokens_records:
-                if not S2CellTokens.query.filter(S2CellTokens.cell_token == s2_cell_token_record.cell_token).first():
-                    geo_id_record.s2_cell_tokens.append(s2_cell_token_record)
-                else:
-                    s2_cell_token_from_db = S2CellTokens.query.filter(
-                        S2CellTokens.cell_token == s2_cell_token_record.cell_token).first()
-                    geo_id_record.s2_cell_tokens.append(s2_cell_token_from_db)
-
+            existing_records = S2CellTokens.query.filter(
+                S2CellTokens.cell_token.in_([t.cell_token for t in s2_cell_tokens_records]))
+            s = [x.cell_token for x in list(existing_records)]
+            ls_records_to_create = [x for x in s2_cell_tokens_records if x.cell_token not in s]
+            geo_id_record.s2_cell_tokens = ls_records_to_create
         geo_data = json.dumps(geo_data)
         geo_id_record.geo_data = geo_data
 
