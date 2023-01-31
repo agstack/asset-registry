@@ -154,7 +154,12 @@ class Utils:
         geo_id_record.geo_data = geo_data
 
         # populating the cell tokens, geo id and the middle table in the database
-        db.session.add(geo_id_record)
+        # bulk insertions for tables
+        # return_defaults as True sets the Id for the record to be inserted
+        db.session.bulk_save_objects([geo_id_record], return_defaults=True)
+        db.session.bulk_save_objects(geo_id_record.s2_cell_tokens, return_defaults=True)
+        ls_middle_table_records = [CellsGeosMiddle(geo_id=geo_id_record.id, cell_id=s2_cell_token_record.id) for s2_cell_token_record in geo_id_record.s2_cell_tokens]
+        db.session.bulk_save_objects(ls_middle_table_records)
         db.session.commit()
         return geo_data
 
