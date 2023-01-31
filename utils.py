@@ -149,7 +149,7 @@ class Utils:
             existing_cell_tokens = [existing_record.cell_token for existing_record in list(existing_records)]
             ls_records_to_create = [s2_cell_tokens_record for s2_cell_tokens_record in s2_cell_tokens_records if
                                     s2_cell_tokens_record.cell_token not in existing_cell_tokens]
-            geo_id_record.s2_cell_tokens = ls_records_to_create + list(existing_records)
+            geo_id_record.s2_cell_tokens = geo_id_record.s2_cell_tokens + ls_records_to_create + list(existing_records)
         geo_data = json.dumps(geo_data)
         geo_id_record.geo_data = geo_data
 
