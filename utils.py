@@ -1,12 +1,15 @@
 import json
 import hashlib
 
+import pyproj
 import requests
 import shapely
 import jwt
-from functools import wraps
+from functools import wraps, partial
 from flask import request, jsonify
 from localStoragePy import localStoragePy
+from shapely import ops
+from shapely.wkt import loads
 
 from dbms import app, db
 from dbms.models.geoIdsModel import GeoIds
@@ -158,7 +161,8 @@ class Utils:
         # return_defaults as True sets the Id for the record to be inserted
         db.session.bulk_save_objects([geo_id_record], return_defaults=True)
         db.session.bulk_save_objects(geo_id_record.s2_cell_tokens, return_defaults=True)
-        ls_middle_table_records = [CellsGeosMiddle(geo_id=geo_id_record.id, cell_id=s2_cell_token_record.id) for s2_cell_token_record in geo_id_record.s2_cell_tokens]
+        ls_middle_table_records = [CellsGeosMiddle(geo_id=geo_id_record.id, cell_id=s2_cell_token_record.id) for
+                                   s2_cell_token_record in geo_id_record.s2_cell_tokens]
         db.session.bulk_save_objects(ls_middle_table_records)
         db.session.commit()
         return geo_data
@@ -361,3 +365,27 @@ class Utils:
         for key in s2_indexes_to_remove:
             del geo_data[str(key)]
         return geo_data
+
+    @staticmethod
+    def get_are_in_acres(wkt):
+        """
+        Fetch the area in acres for the given field (wkt)
+        :param wkt:
+        :return:
+        """
+        geom = loads(wkt)
+        geom_area = ops.transform(
+            partial(
+                pyproj.transform,
+                pyproj.Proj(init='EPSG:4326'),
+                pyproj.Proj(
+                    proj='aea',
+                    lat_1=geom.bounds[1],
+                    lat_2=geom.bounds[3])),
+            geom)
+
+        # Return the area in km^2
+        area_in_sq_km = geom_area.area / 1000000
+        area_in_acres = area_in_sq_km * 247.105
+
+        return area_in_acres

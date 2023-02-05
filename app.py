@@ -75,6 +75,14 @@ def register_field_boundary():
     try:
         data = json.loads(request.data.decode('utf-8'))
         field_wkt = data.get('wkt')
+
+        are_in_acres = Utils.get_are_in_acres(field_wkt)
+        if are_in_acres > 1000:
+            return make_response(jsonify({
+                "Message": f"Cannot register a field with Area greater than 1000 acres",
+                "Field area (acres)": are_in_acres
+            }), 200)
+
         s2_index = data.get('s2_index')
         if s2_index:
             s2_index_to_fetch = [int(i) for i in (data.get('s2_index')).split(',')]
@@ -105,7 +113,7 @@ def register_field_boundary():
                 geo_data_to_return = Utils.get_specific_s2_index_geo_data(geo_data, s2_indexes_to_remove)
             return jsonify({
                 "Message": "Field Boundary registered successfully.",
-                "GEO ID": geo_id,
+                "Geo Id": geo_id,
                 "S2 Cell Tokens": geo_data_to_return
             })
         else:
