@@ -75,7 +75,7 @@ def register_field_boundary():
     try:
         data = json.loads(request.data.decode('utf-8'))
         field_wkt = data.get('wkt')
-
+        field_boundary_geo_json = Utils.get_geo_json(field_wkt)
         are_in_acres = Utils.get_are_in_acres(field_wkt)
         if are_in_acres > 1000:
             return make_response(jsonify({
@@ -103,9 +103,9 @@ def register_field_boundary():
         # generate the geo_id only for `s2_index__l13_list`
         geo_id = Utils.generate_geo_id(indices[13])
         # lookup the database to see if geo id already exists
-        geo_id_exists = Utils.lookup_geo_ids(geo_id)
+        geo_id_exists_wkt = Utils.lookup_geo_ids(geo_id)
         # if geo id not registered, register it in the database
-        if not geo_id_exists:
+        if not geo_id_exists_wkt:
             geo_data_to_return = None
             geo_data = Utils.register_field_boundary(geo_id, indices, records_list_s2_cell_tokens_middle_table_dict,
                                                      field_wkt)
@@ -114,12 +114,15 @@ def register_field_boundary():
             return jsonify({
                 "Message": "Field Boundary registered successfully.",
                 "Geo Id": geo_id,
-                "S2 Cell Tokens": geo_data_to_return
+                "S2 Cell Tokens": geo_data_to_return,
+                "Geo JSON": field_boundary_geo_json
             })
         else:
             return make_response(jsonify({
                 "Message": f"Field Boundary already registered.",
-                "Geo Id": geo_id
+                "Geo Id": geo_id,
+                "Geo JSON requested": field_boundary_geo_json,
+                "Geo JSON registered": Utils.get_geo_json(geo_id_exists_wkt)
             }), 200)
     except Exception as e:
         return jsonify({
@@ -178,13 +181,15 @@ def fetch_field(geo_id):
         return make_response(jsonify({
             "Message": "Field not found, invalid Geo Id."
         }), 404)
+    field_boundary_geo_json = Utils.get_geo_json(json.loads(field.geo_data)['wkt'])
     geo_data = None
     if s2_index_to_fetch and s2_indexes_to_remove != -1:
         geo_data = Utils.get_specific_s2_index_geo_data(field.geo_data, s2_indexes_to_remove)
     return make_response(jsonify({
         "Message": "Field fetched successfully.",
         "GEO Id": geo_id,
-        "Geo Data": geo_data
+        "Geo Data": geo_data,
+        "Geo JSON": field_boundary_geo_json
     }), 200)
 
 
