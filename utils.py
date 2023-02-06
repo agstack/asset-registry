@@ -10,6 +10,8 @@ from flask import request, jsonify
 from localStoragePy import localStoragePy
 from shapely import ops
 from shapely.wkt import loads
+from shapely.geometry import mapping
+import geojson
 
 from dbms import app, db
 from dbms.models.geoIdsModel import GeoIds
@@ -120,10 +122,14 @@ class Utils:
     def lookup_geo_ids(geo_id_to_lookup):
         """
         check if the geo id (field boundary) is already registered
+        Returns the fetched Field WKT
         :param geo_id_to_lookup:
         :return:
         """
-        exists = db.session.query(GeoIds.id).filter_by(geo_id=geo_id_to_lookup).first() is not None
+        exists = None
+        record = GeoIds.query.filter(GeoIds.geo_id == geo_id_to_lookup).first()
+        if record:
+            exists = json.loads(record.geo_data)['wkt']
         return exists
 
     @staticmethod
@@ -389,3 +395,16 @@ class Utils:
         area_in_acres = area_in_sq_km * 247.105
 
         return area_in_acres
+
+    @staticmethod
+    def get_geo_json(field_wkt):
+        """
+        Fetch the Geo JSON for the given field WKT
+        :param field_wkt:
+        :return:
+        """
+        geojson_dict = {"type": "Feature"}
+        geojson_string = geojson.dumps(mapping(loads(field_wkt)))
+        geojson_dict["geometry"] = json.loads(geojson_string)
+        return  geojson_dict
+
