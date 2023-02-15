@@ -62,16 +62,20 @@ class Utils:
         @wraps(f)
         def decorated(*args, **kwargs):
             token = None
-            if request.is_json:
-                headers = request.headers
-                bearer = headers.get('Authorization')  # Bearer JWT token here
-                if bearer:
-                    token = bearer.split()[1]  # JWT token
-            else:
+            headers = request.headers
+            bearer = headers.get('Authorization')  # Bearer JWT token here
+            if bearer:
+                token = bearer.split()[1]  # JWT token
+            if token is None:
                 token = localStorage.getItem('token')
             try:
                 # decoding the payload to check for valid token
-                jwt.decode(token, app.config['SECRET_KEY'], algorithms="HS256")
+                decoded_token = jwt.decode(token, app.config['SECRET_KEY'], algorithms="HS256")
+                # check if user account is activated
+                if not decoded_token['is_activated']:
+                    return jsonify({
+                        'message': 'User account not activated. Activate your account for the services.',
+                    }), 401
             except Exception as e:
                 localStorage.clear()
                 return jsonify({
@@ -406,5 +410,4 @@ class Utils:
         geojson_dict = {"type": "Feature"}
         geojson_string = geojson.dumps(mapping(loads(field_wkt)))
         geojson_dict["geometry"] = json.loads(geojson_string)
-        return  geojson_dict
-
+        return geojson_dict
