@@ -40,7 +40,7 @@ def index(token):
         return jsonify(to_return)
     except:
         return jsonify({
-            "Message": "Asset Registry error"
+            "message": "Asset Registry error"
         }), 400
 
 
@@ -49,7 +49,7 @@ def index(token):
 def logout():
     localStorage.clear()
     return jsonify({
-        "Message": "Logged out successfully."
+        "message": "Logged out successfully."
     })
 
 
@@ -79,7 +79,7 @@ def register_field_boundary():
         are_in_acres = Utils.get_are_in_acres(field_wkt)
         if are_in_acres > 1000:
             return make_response(jsonify({
-                "Message": f"Cannot register a field with Area greater than 1000 acres",
+                "message": f"Cannot register a field with Area greater than 1000 acres",
                 "Field area (acres)": are_in_acres
             }), 200)
 
@@ -112,14 +112,14 @@ def register_field_boundary():
             if s2_index and s2_indexes_to_remove != -1:
                 geo_data_to_return = Utils.get_specific_s2_index_geo_data(geo_data, s2_indexes_to_remove)
             return jsonify({
-                "Message": "Field Boundary registered successfully.",
+                "message": "Field Boundary registered successfully.",
                 "Geo Id": geo_id,
                 "S2 Cell Tokens": geo_data_to_return,
                 "Geo JSON": field_boundary_geo_json
             })
         else:
             return make_response(jsonify({
-                "Message": f"Field Boundary already registered.",
+                "message": f"Field Boundary already registered.",
                 "Geo Id": geo_id,
                 "Geo JSON requested": field_boundary_geo_json,
                 "Geo JSON registered": Utils.get_geo_json(geo_id_exists_wkt)
@@ -156,7 +156,7 @@ def fetch_overlapping_fields():
                                                               threshold)
 
     return make_response(jsonify({
-        "Message": "The field Geo Ids with percentage match of the given threshold.",
+        "message": "The field Geo Ids with percentage match of the given threshold.",
         "GEO Ids": percentage_matched_geo_ids
     }), 200)
 
@@ -179,14 +179,14 @@ def fetch_field(geo_id):
         .first()
     if not field:
         return make_response(jsonify({
-            "Message": "Field not found, invalid Geo Id."
+            "message": "Field not found, invalid Geo Id."
         }), 404)
     field_boundary_geo_json = Utils.get_geo_json(json.loads(field.geo_data)['wkt'])
     geo_data = None
     if s2_index_to_fetch and s2_indexes_to_remove != -1:
         geo_data = Utils.get_specific_s2_index_geo_data(field.geo_data, s2_indexes_to_remove)
     return make_response(jsonify({
-        "Message": "Field fetched successfully.",
+        "message": "Field fetched successfully.",
         "GEO Id": geo_id,
         "Geo Data": geo_data,
         "Geo JSON": field_boundary_geo_json
@@ -206,10 +206,10 @@ def fetch_field_wkt(geo_id):
             .first()
         if not field:
             return make_response(jsonify({
-                "Message": "Field not found, invalid Geo Id."
+                "message": "Field not found, invalid Geo Id."
             }), 404)
         return make_response(jsonify({
-            "Message": "WKT fetched successfully.",
+            "message": "WKT fetched successfully.",
             "GEO Id": geo_id,
             "WKT": json.loads(field.geo_data)['wkt']
         }), 200)
@@ -232,13 +232,13 @@ def get_percentage_overlap_two_fields():
         geo_id_field_2 = data.get('geo_id_field_2')
         if not geo_id_field_1 or not geo_id_field_2:
             return make_response(jsonify({
-                "Message": "Two Geo Ids are required."
+                "message": "Two Geo Ids are required."
             }), 400)
 
         percentage_overlap = Utils.get_percentage_overlap_two_fields(geo_id_field_1, geo_id_field_2)
     except AttributeError as error:
         return make_response(jsonify({
-            "Message": str(error)
+            "message": str(error)
         }), 404)
 
     return make_response(jsonify({
@@ -265,7 +265,7 @@ def fetch_fields_for_a_point():
         s2_index = data.get('s2_index')
         if not lat or not long:
             return make_response(jsonify({
-                "Message": "Latitude and Longitude are required."
+                "message": "Latitude and Longitude are required."
             }), 400)
         s2_cell_token_13, s2_cell_token_20 = S2Service.get_cell_token_for_lat_long(lat, long)
         fetched_fields = Utils.fetch_fields_for_a_point_two_way(s2_cell_token_13, s2_cell_token_20, domain, s2_index)
@@ -274,7 +274,7 @@ def fetch_fields_for_a_point():
         }), 200)
     except AttributeError as error:
         return make_response(jsonify({
-            "Message": str(error)
+            "message": str(error)
         }), 404)
 
 
@@ -292,13 +292,13 @@ def fetch_bounding_box_fields():
     s2_index = data.get('s2_index')
     if not latitudes or not longitudes:
         return make_response(jsonify({
-            "Message": "Latitudes and Longitudes are required."
+            "message": "Latitudes and Longitudes are required."
         }), 400)
     s2_cell_tokens_13 = S2Service.get_cell_tokens_for_bounding_box(latitudes, longitudes)
     s2_cell_tokens_20 = S2Service.get_cell_tokens_for_bounding_box(latitudes, longitudes, 20)
     fields = Utils.fetch_fields_for_cell_tokens(s2_cell_tokens_13, s2_cell_tokens_20, s2_index)
     return make_response(jsonify({
-        "Message": fields
+        "message": fields
     }), 200)
 
 
@@ -310,7 +310,7 @@ def fetch_all_domains():
     """
     res = requests.get(app.config['USER_REGISTRY_BASE_URL'] + '/domains', timeout=2)
     return jsonify({
-        "Message": "All domains",
+        "message": "All domains",
         "Domains": res.json()['Domains']
     }), 200
 
