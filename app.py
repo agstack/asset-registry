@@ -38,10 +38,11 @@ def index(token):
             status = 204
         to_return = {'status': status}
         return jsonify(to_return)
-    except:
+    except Exception as e:
         return jsonify({
-            "message": "Asset Registry error"
-        }), 400
+            'message': 'Asset Registry Error',
+            'error': f'{e}'
+        }), 401
 
 
 @app.route('/logout', methods=['GET'])
@@ -131,7 +132,7 @@ def register_field_boundary():
         }), 401
 
 
-@app.route('/fetch-overlapping-fields', methods=['GET'])
+@app.route('/fetch-overlapping-fields', methods=['POST'])
 @Utils.token_required
 def fetch_overlapping_fields():
     """
@@ -140,25 +141,33 @@ def fetch_overlapping_fields():
     Optional domain parameter for filtering fields based on associated domain
     Returning the fields Geo Ids
     """
-    data = json.loads(request.data.decode('utf-8'))
-    field_wkt = data.get('wkt')
-    resolution_level = data.get('resolution_level')
-    threshold = data.get('threshold')
-    domain = data.get('domain')
+    try:
+        data = json.loads(request.data.decode('utf-8'))
+        field_wkt = data.get('wkt')
+        resolution_level = data.get('resolution_level') or 13
+        threshold = data.get('threshold') or 60
+        s2_index = data.get('s2_index')
+        domain = data.get('domain') or ""
 
-    # get the L13 indices
-    # s2_index__L13_list is a list of tokens(hex encoded version of the cell id)
-    s2_index__l13_list = S2Service.wkt_to_cell_tokens(field_wkt, resolution_level)
+        # get the L13 indices
+        # s2_index__L13_list is a list of tokens(hex encoded version of the cell id)
+        s2_index__l13_list = S2Service.wkt_to_cell_tokens(field_wkt, resolution_level)
 
-    # fetch geo ids for tokens and checking for the percentage match
-    matched_geo_ids = Utils.fetch_geo_ids_for_cell_tokens(s2_index__l13_list, domain)
-    percentage_matched_geo_ids = Utils.check_percentage_match(matched_geo_ids, s2_index__l13_list, resolution_level,
-                                                              threshold)
+        # fetch geo ids for tokens and checking for the percentage match
+        matched_geo_ids = Utils.fetch_geo_ids_for_cell_tokens(s2_index__l13_list, domain)
+        percentage_matched_geo_ids = Utils.check_percentage_match(matched_geo_ids, s2_index__l13_list, resolution_level,
+                                                                  threshold)
+        percentage_matched_fields = Utils.fetch_fields_for_geo_ids(percentage_matched_geo_ids, s2_index)
 
-    return make_response(jsonify({
-        "message": "The field Geo Ids with percentage match of the given threshold.",
-        "GEO Ids": percentage_matched_geo_ids
-    }), 200)
+        return make_response(jsonify({
+            "message": "The field Geo Ids with percentage match of the given threshold.",
+            "Matched Fields": percentage_matched_fields
+        }), 200)
+    except Exception as e:
+        return jsonify({
+            'message': 'Fetch Overlapping Fields Error',
+            'error': f'{e}'
+        }), 401
 
 
 @app.route('/fetch-field/<geo_id>', methods=['GET'])
@@ -168,29 +177,35 @@ def fetch_field(geo_id):
     :param geo_id:
     :return:
     """
-    s2_index_to_fetch = None
-    args = request.args
-    if args.getlist('s2_index') and args.getlist('s2_index')[0]:
-        s2_index_to_fetch = [int(i) for i in (args.getlist('s2_index')[0]).split(',')]
-    if s2_index_to_fetch:
-        s2_indexes_to_remove = Utils.get_s2_indexes_to_remove(s2_index_to_fetch)
-    field = geoIdsModel.GeoIds.query \
-        .filter_by(geo_id=geo_id) \
-        .first()
-    if not field:
+    try:
+        s2_index_to_fetch = None
+        args = request.args
+        if args.getlist('s2_index') and args.getlist('s2_index')[0]:
+            s2_index_to_fetch = [int(i) for i in (args.getlist('s2_index')[0]).split(',')]
+        if s2_index_to_fetch:
+            s2_indexes_to_remove = Utils.get_s2_indexes_to_remove(s2_index_to_fetch)
+        field = geoIdsModel.GeoIds.query \
+            .filter_by(geo_id=geo_id) \
+            .first()
+        if not field:
+            return make_response(jsonify({
+                "message": "Field not found, invalid Geo Id."
+            }), 404)
+        field_boundary_geo_json = Utils.get_geo_json(json.loads(field.geo_data)['wkt'])
+        geo_data = None
+        if s2_index_to_fetch and s2_indexes_to_remove != -1:
+            geo_data = Utils.get_specific_s2_index_geo_data(field.geo_data, s2_indexes_to_remove)
         return make_response(jsonify({
-            "message": "Field not found, invalid Geo Id."
-        }), 404)
-    field_boundary_geo_json = Utils.get_geo_json(json.loads(field.geo_data)['wkt'])
-    geo_data = None
-    if s2_index_to_fetch and s2_indexes_to_remove != -1:
-        geo_data = Utils.get_specific_s2_index_geo_data(field.geo_data, s2_indexes_to_remove)
-    return make_response(jsonify({
-        "message": "Field fetched successfully.",
-        "GEO Id": geo_id,
-        "Geo Data": geo_data,
-        "Geo JSON": field_boundary_geo_json
-    }), 200)
+            "message": "Field fetched successfully.",
+            "GEO Id": geo_id,
+            "Geo Data": geo_data,
+            "Geo JSON": field_boundary_geo_json
+        }), 200)
+    except Exception as e:
+        return jsonify({
+            'message': 'Fetch Field Error',
+            'error': f'{e}'
+        }), 401
 
 
 @app.route('/fetch-field-wkt/<geo_id>', methods=['GET'])
@@ -227,23 +242,29 @@ def get_percentage_overlap_two_fields():
     :return:
     """
     try:
-        data = json.loads(request.data.decode('utf-8'))
-        geo_id_field_1 = data.get('geo_id_field_1')
-        geo_id_field_2 = data.get('geo_id_field_2')
-        if not geo_id_field_1 or not geo_id_field_2:
+        try:
+            data = json.loads(request.data.decode('utf-8'))
+            geo_id_field_1 = data.get('geo_id_field_1')
+            geo_id_field_2 = data.get('geo_id_field_2')
+            if not geo_id_field_1 or not geo_id_field_2:
+                return make_response(jsonify({
+                    "message": "Two Geo Ids are required."
+                }), 400)
+
+            percentage_overlap = Utils.get_percentage_overlap_two_fields(geo_id_field_1, geo_id_field_2)
+        except AttributeError as error:
             return make_response(jsonify({
-                "message": "Two Geo Ids are required."
-            }), 400)
+                "message": str(error)
+            }), 404)
 
-        percentage_overlap = Utils.get_percentage_overlap_two_fields(geo_id_field_1, geo_id_field_2)
-    except AttributeError as error:
         return make_response(jsonify({
-            "message": str(error)
-        }), 404)
-
-    return make_response(jsonify({
-        "Percentage Overlap": str(percentage_overlap) + ' %'
-    }), 200)
+            "Percentage Overlap": str(percentage_overlap) + ' %'
+        }), 200)
+    except Exception as e:
+        return jsonify({
+            'message': 'Get Percentage Overlap two Fields Error',
+            'error': f'{e}'
+        }), 401
 
 
 @app.route('/fetch-fields-for-a-point', methods=['POST'])
@@ -272,10 +293,11 @@ def fetch_fields_for_a_point():
         return make_response(jsonify({
             "Fetched fields": fetched_fields
         }), 200)
-    except AttributeError as error:
-        return make_response(jsonify({
-            "message": str(error)
-        }), 404)
+    except Exception as e:
+        return jsonify({
+            'message': 'Fetch Fields for a Point Error',
+            'error': f'{e}'
+        }), 401
 
 
 @app.route('/fetch-bounding-box-fields', methods=['POST'])
@@ -286,20 +308,26 @@ def fetch_bounding_box_fields():
     4 vertices are provided
     :return:
     """
-    data = json.loads(request.data.decode('utf-8'))
-    latitudes = list(map(float, data.get('latitudes').split(' ')))
-    longitudes = list(map(float, data.get('longitudes').split(' ')))
-    s2_index = data.get('s2_index')
-    if not latitudes or not longitudes:
+    try:
+        data = json.loads(request.data.decode('utf-8'))
+        latitudes = list(map(float, data.get('latitudes').split(' ')))
+        longitudes = list(map(float, data.get('longitudes').split(' ')))
+        s2_index = data.get('s2_index')
+        if not latitudes or not longitudes:
+            return make_response(jsonify({
+                "message": "Latitudes and Longitudes are required."
+            }), 400)
+        s2_cell_tokens_13 = S2Service.get_cell_tokens_for_bounding_box(latitudes, longitudes)
+        s2_cell_tokens_20 = S2Service.get_cell_tokens_for_bounding_box(latitudes, longitudes, 20)
+        fields = Utils.fetch_fields_for_cell_tokens(s2_cell_tokens_13, s2_cell_tokens_20, s2_index)
         return make_response(jsonify({
-            "message": "Latitudes and Longitudes are required."
-        }), 400)
-    s2_cell_tokens_13 = S2Service.get_cell_tokens_for_bounding_box(latitudes, longitudes)
-    s2_cell_tokens_20 = S2Service.get_cell_tokens_for_bounding_box(latitudes, longitudes, 20)
-    fields = Utils.fetch_fields_for_cell_tokens(s2_cell_tokens_13, s2_cell_tokens_20, s2_index)
-    return make_response(jsonify({
-        "message": fields
-    }), 200)
+            "message": fields
+        }), 200)
+    except Exception as e:
+        return jsonify({
+            'message': 'Fetch Bounding Box Fields Error',
+            'error': f'{e}'
+        }), 401
 
 
 @app.route("/domains", methods=['GET'])
