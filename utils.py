@@ -32,10 +32,12 @@ class Utils:
         @wraps(f)
         def decorated(*args, **kwargs):
             try:
+                token = None
                 # jwt is passed in the request header
                 headers = request.headers
                 bearer = headers.get('Authorization')  # Bearer JWT token here
-                token = bearer.split()[1]  # JWT token
+                if bearer:
+                    token = bearer.split()[1]  # JWT token
                 # return 401 if token is not passed
                 if not token:
                     return jsonify({'message': 'Token is missing !!'}), 401
@@ -49,9 +51,10 @@ class Utils:
                         'message': 'Token is invalid !!'
                     }), 401
                 return f(token, *args, **kwargs)
-            except:
+            except Exception as e:
                 return jsonify({
-                    'message': 'Authentication Error!'
+                    'message': 'Authentication Error',
+                    'error': f'{e}'
                 }), 401
 
         return decorated
@@ -71,16 +74,16 @@ class Utils:
             try:
                 # decoding the payload to check for valid token
                 decoded_token = jwt.decode(token, app.config['SECRET_KEY'], algorithms="HS256")
-                # check if user account is activated
-                if not decoded_token['is_activated']:
-                    return jsonify({
-                        'message': 'User account not activated. Activate your account for the services.',
-                    }), 401
-            except Exception as e:
+                if not 'logout' in request.url:
+                    # check if user account is activated
+                    if not decoded_token['is_activated']:
+                        return jsonify({
+                            'message': 'User account not activated. Activate your account for the services.',
+                        }), 401
+            except :
                 localStorage.clear()
                 return jsonify({
-                    'message': 'Need to Login.',
-                    'error': f'{e}'
+                    'message': 'Need to Login.'
                 }), 401
             return f(*args, **kwargs)
 
@@ -281,11 +284,12 @@ class Utils:
             geo_ids = [r.geo_id for r in geo_ids]
         for geo_id in geo_ids:
             geo_data = json.loads(GeoIds.query.filter(GeoIds.geo_id == geo_id).first().geo_data)
-            geo_data_to_return = None
+            geo_data_to_return = {}
             if s2_index and s2_indexes_to_remove != -1:
                 geo_data_to_return = Utils.get_specific_s2_index_geo_data(json.dumps(geo_data), s2_indexes_to_remove)
             for s2_cell_token_20 in s2_cell_tokens_20:
                 if s2_cell_token_20 in geo_data['20']:
+                    geo_data_to_return['Geo JSON'] = Utils.get_geo_json(geo_data['wkt'])
                     fields_to_return.append({geo_id: geo_data_to_return})
                     break
         return fields_to_return
@@ -317,12 +321,28 @@ class Utils:
         geo_ids = [r.geo_id for r in geo_ids]
         fields_to_return = []
         for geo_id in geo_ids:
-            geo_data_to_return = None
+            geo_data_to_return = {}
             geo_data = json.loads(GeoIds.query.filter(GeoIds.geo_id == geo_id).first().geo_data)
             if s2_index and s2_indexes_to_remove != -1:
                 geo_data_to_return = Utils.get_specific_s2_index_geo_data(json.dumps(geo_data), s2_indexes_to_remove)
             if s2_cell_token_13 in geo_data['13'] and s2_cell_token_20 in geo_data['20']:
+                geo_data_to_return['Geo JSON'] = Utils.get_geo_json(geo_data['wkt'])
                 fields_to_return.append({geo_id: geo_data_to_return})
+        return fields_to_return
+
+    @staticmethod
+    def fetch_fields_for_geo_ids(geo_ids, s2_index=None):
+        fields_to_return = []
+        if s2_index:
+            s2_index_to_fetch = [int(i) for i in s2_index.split(',')]
+            s2_indexes_to_remove = Utils.get_s2_indexes_to_remove(s2_index_to_fetch)
+        for geo_id in geo_ids:
+            geo_data_to_return = {}
+            geo_data = json.loads(GeoIds.query.filter(GeoIds.geo_id == geo_id).first().geo_data)
+            if s2_index and s2_indexes_to_remove != -1:
+                geo_data_to_return = Utils.get_specific_s2_index_geo_data(json.dumps(geo_data), s2_indexes_to_remove)
+            geo_data_to_return['Geo JSON'] = Utils.get_geo_json(geo_data['wkt'])
+            fields_to_return.append({geo_id: geo_data_to_return})
         return fields_to_return
 
     @staticmethod
