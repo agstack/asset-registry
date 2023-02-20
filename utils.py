@@ -149,36 +149,40 @@ class Utils:
         :param field_wkt:
         :return:
         """
-        geo_data = {'wkt': field_wkt}
-        authority_token = None
-        domain = Utils.get_domain_from_jwt()
-        if domain:
-            authority_token = Utils.get_authority_token_for_domain(domain)
-        geo_id_record = GeoIds(geo_id, geo_data, authority_token)
-        # creating the json encoded geo_data for different resolution levels
-        for res_level, s2_cell_tokens_records in records_list_s2_cell_tokens_middle_table_dict.items():
-            geo_data[res_level] = indices[res_level]
-            # linking the s2 cell token records with the geo id for the middle table
-            existing_records = S2CellTokens.query.filter(
-                S2CellTokens.cell_token.in_(
-                    [s2_cell_tokens_record.cell_token for s2_cell_tokens_record in s2_cell_tokens_records]))
-            existing_cell_tokens = [existing_record.cell_token for existing_record in list(existing_records)]
-            ls_records_to_create = [s2_cell_tokens_record for s2_cell_tokens_record in s2_cell_tokens_records if
-                                    s2_cell_tokens_record.cell_token not in existing_cell_tokens]
-            geo_id_record.s2_cell_tokens = geo_id_record.s2_cell_tokens + ls_records_to_create + list(existing_records)
-        geo_data = json.dumps(geo_data)
-        geo_id_record.geo_data = geo_data
+        try:
+            geo_data = {'wkt': field_wkt}
+            authority_token = None
+            domain = Utils.get_domain_from_jwt()
+            if domain:
+                authority_token = Utils.get_authority_token_for_domain(domain)
+            geo_id_record = GeoIds(geo_id, geo_data, authority_token)
+            # creating the json encoded geo_data for different resolution levels
+            for res_level, s2_cell_tokens_records in records_list_s2_cell_tokens_middle_table_dict.items():
+                geo_data[res_level] = indices[res_level]
+                # linking the s2 cell token records with the geo id for the middle table
+                existing_records = S2CellTokens.query.filter(
+                    S2CellTokens.cell_token.in_(
+                        [s2_cell_tokens_record.cell_token for s2_cell_tokens_record in s2_cell_tokens_records]))
+                existing_cell_tokens = [existing_record.cell_token for existing_record in list(existing_records)]
+                ls_records_to_create = [s2_cell_tokens_record for s2_cell_tokens_record in s2_cell_tokens_records if
+                                        s2_cell_tokens_record.cell_token not in existing_cell_tokens]
+                geo_id_record.s2_cell_tokens = geo_id_record.s2_cell_tokens + ls_records_to_create + list(
+                    existing_records)
+            geo_data = json.dumps(geo_data)
+            geo_id_record.geo_data = geo_data
 
-        # populating the cell tokens, geo id and the middle table in the database
-        # bulk insertions for tables
-        # return_defaults as True sets the Id for the record to be inserted
-        db.session.bulk_save_objects([geo_id_record], return_defaults=True)
-        db.session.bulk_save_objects(geo_id_record.s2_cell_tokens, return_defaults=True)
-        ls_middle_table_records = [CellsGeosMiddle(geo_id=geo_id_record.id, cell_id=s2_cell_token_record.id) for
-                                   s2_cell_token_record in geo_id_record.s2_cell_tokens]
-        db.session.bulk_save_objects(ls_middle_table_records)
-        db.session.commit()
-        return geo_data
+            # populating the cell tokens, geo id and the middle table in the database
+            # bulk insertions for tables
+            # return_defaults as True sets the Id for the record to be inserted
+            db.session.bulk_save_objects([geo_id_record], return_defaults=True)
+            db.session.bulk_save_objects(geo_id_record.s2_cell_tokens, return_defaults=True)
+            ls_middle_table_records = [CellsGeosMiddle(geo_id=geo_id_record.id, cell_id=s2_cell_token_record.id) for
+                                       s2_cell_token_record in geo_id_record.s2_cell_tokens]
+            db.session.bulk_save_objects(ls_middle_table_records)
+            db.session.commit()
+            return geo_data
+        except Exception as e:
+             raise e
 
     @staticmethod
     def fetch_geo_ids_for_cell_tokens(s2_cell_tokens, domain):
