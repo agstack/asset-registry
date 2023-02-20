@@ -76,6 +76,8 @@ def register_field_boundary():
     try:
         data = json.loads(request.data.decode('utf-8'))
         field_wkt = data.get('wkt')
+        threshold = data.get('threshold') or 95
+        resolution_level = 20
         field_boundary_geo_json = Utils.get_geo_json(field_wkt)
         are_in_acres = Utils.get_are_in_acres(field_wkt)
         if are_in_acres > 1000:
@@ -103,6 +105,7 @@ def register_field_boundary():
         records_list_s2_cell_tokens_middle_table_dict = Utils.records_s2_cell_tokens(indices)
         # generate the geo_id only for `s2_index__l13_list`
         geo_id = Utils.generate_geo_id(indices[13])
+        geo_id_l20 = Utils.generate_geo_id(indices[20])
         # lookup the database to see if geo id already exists
         geo_id_exists_wkt = Utils.lookup_geo_ids(geo_id)
         # if geo id not registered, register it in the database
@@ -119,12 +122,42 @@ def register_field_boundary():
                 "Geo JSON": field_boundary_geo_json
             })
         else:
-            return make_response(jsonify({
-                "message": f"Field Boundary already registered.",
-                "Geo Id": geo_id,
-                "Geo JSON requested": field_boundary_geo_json,
-                "Geo JSON registered": Utils.get_geo_json(geo_id_exists_wkt)
-            }), 200)
+            # check for the percentage match for the given threshold for L20
+            # get the L20 indices
+            # s2_index__L20_list is a list of tokens(hex encoded version of the cell id)
+            s2_index_to_check = indices[20]
+            # fetch geo ids for tokens and checking for the percentage match
+            matched_geo_ids = Utils.fetch_geo_ids_for_cell_tokens(s2_index_to_check, "")
+            percentage_matched_geo_ids = Utils.check_percentage_match(matched_geo_ids, s2_index_to_check,
+                                                                      resolution_level,
+                                                                      threshold)
+            if len(percentage_matched_geo_ids) > 0:
+                return jsonify({
+                    'message': 'Threshold matched for already registered Field Boundary(ies)',
+                    'matched geo ids': percentage_matched_geo_ids
+                }), 400
+
+            geo_id_exists_wkt_l20 = Utils.lookup_geo_ids(geo_id_l20)
+            if not geo_id_exists_wkt_l20:
+                geo_data_to_return = None
+                geo_data = Utils.register_field_boundary(geo_id_l20, indices,
+                                                         records_list_s2_cell_tokens_middle_table_dict,
+                                                         field_wkt)
+                if s2_index and s2_indexes_to_remove != -1:
+                    geo_data_to_return = Utils.get_specific_s2_index_geo_data(geo_data, s2_indexes_to_remove)
+                return jsonify({
+                    "message": "Field Boundary registered successfully.",
+                    "Geo Id": geo_id,
+                    "S2 Cell Tokens": geo_data_to_return,
+                    "Geo JSON": field_boundary_geo_json
+                })
+            else:
+                return make_response(jsonify({
+                    "message": f"Field Boundary already registered.",
+                    "Geo Id": geo_id_l20,
+                    "Geo JSON requested": field_boundary_geo_json,
+                    "Geo JSON registered": Utils.get_geo_json(geo_id_exists_wkt_l20)
+                }), 200)
     except Exception as e:
         return jsonify({
             'message': 'Register Field Boundary Error',
@@ -145,7 +178,7 @@ def fetch_overlapping_fields():
         data = json.loads(request.data.decode('utf-8'))
         field_wkt = data.get('wkt')
         resolution_level = data.get('resolution_level') or 13
-        threshold = data.get('threshold') or 60
+        threshold = data.get('threshold') or 95
         s2_index = data.get('s2_index')
         domain = data.get('domain') or ""
 
@@ -344,4 +377,4 @@ def fetch_all_domains():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0')
+    app.run(host='0.0.0.0', port=4000)
