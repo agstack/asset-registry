@@ -224,6 +224,7 @@ class Utils:
             percentage_match = len(set(s2_index__l13_list) & set(geo_id_cell_tokens)) / float(
                 len(set(s2_index__l13_list) | set(geo_id_cell_tokens))) * 100
             if percentage_match > threshold:
+                print(f'PERCENTAGE MATCH ::: {percentage_match} GEO ID ::: {matched_geo_id}')
                 percentage_matched_geo_ids.append(matched_geo_id)
         return percentage_matched_geo_ids
 

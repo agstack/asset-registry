@@ -376,5 +376,24 @@ def fetch_all_domains():
     }), 200
 
 
+@app.route("/domains", methods=['POST'])
+def authorize_a_domain():
+    """
+    Authorize a domain, will have an authority token
+    :return:
+    """
+    data = json.loads(request.data.decode('utf-8'))
+    domain = data.get('domain')
+    if not domain:
+        return make_response(jsonify({
+            "message": "Domain is required."
+        }), 400)
+    req_body = {'domain': domain}
+    res = requests.post(app.config['USER_REGISTRY_BASE_URL'] + '/domains', json=req_body, timeout=2)
+    return jsonify({
+        "message": res.json()["message"]
+    }), 200
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0')
