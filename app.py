@@ -395,5 +395,35 @@ def authorize_a_domain():
     }), 200
 
 
+@app.route('/fetch-field-count-date-range', methods=['GET'])
+def fetch_field_count_date_range():
+    """
+    Fetch Registered Field By Date Count
+    Query Param start_date end_date are provided
+    :return:
+    """
+    try:
+        args = request.args
+        start_date = args.get("start_date")
+        end_date = args.get("end_date")
+        print(start_date, end_date)
+        if start_date is None or end_date is None:
+            return make_response(jsonify({
+                "message": "start_date and end_date is required.",
+            }), 400)
+        count = geoIdsModel.GeoIds.query \
+            .filter(geoIdsModel.GeoIds.created_at.between(start_date, end_date)) \
+            .count()
+        return make_response(jsonify({
+            "message": "fetched Count By Date successfully.",
+            "count": count,
+        }), 200)
+    except Exception as e:
+        return jsonify({
+            'message': 'Fetch Field Count By Date Error',
+            'error': f'{e}'
+        }), 401
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0')
