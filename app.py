@@ -394,6 +394,25 @@ def authorize_a_domain():
         "message": res.json()["message"]
     }), 200
 
+@app.route('/fetch-registered-field-count', methods=['GET'])
+def fetch_registered_field_count():
+    """
+    Fetch a total registered field count
+    :return:
+    """
+    try:
+        count = geoIdsModel.GeoIds.query \
+            .count()
+        return make_response(jsonify({
+            "message": "Total count fetched successfully.",
+            "count": count,
+        }), 200)
+    except Exception as e:
+        return jsonify({
+            'message': 'Fetch count Error',
+            'error': f'{e}'
+        }), 401
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0')
