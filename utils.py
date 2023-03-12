@@ -12,6 +12,7 @@ from shapely import ops
 from shapely.wkt import loads
 from shapely.geometry import mapping
 import geojson
+from sqlalchemy import and_
 
 from dbms import app, db
 from dbms.models.geoIdsModel import GeoIds
@@ -283,20 +284,22 @@ class Utils:
         if s2_index:
             s2_index_to_fetch = [int(i) for i in s2_index.split(',')]
             s2_indexes_to_remove = Utils.get_s2_indexes_to_remove(s2_index_to_fetch)
-        for s2_cell_token_13 in s2_cell_tokens_13:
-            geo_ids = db.session.query(GeoIds.geo_id).distinct().join(CellsGeosMiddle).join(S2CellTokens).filter(
-                S2CellTokens.cell_token == s2_cell_token_13)
-            geo_ids = [r.geo_id for r in geo_ids]
+        geo_ids = db.session.query(GeoIds.geo_id).distinct().join(CellsGeosMiddle).join(S2CellTokens).filter(
+            S2CellTokens.cell_token.in_(s2_cell_tokens_13)
+        )
+        geo_ids_L13 = [r.geo_id for r in geo_ids]
+        # two way check for L20
+        geo_ids = db.session.query(GeoIds.geo_id).distinct().join(CellsGeosMiddle).join(S2CellTokens).filter(
+            and_(S2CellTokens.cell_token.in_(s2_cell_tokens_20), GeoIds.geo_id.in_(geo_ids_L13))
+        )
+        geo_ids = [r.geo_id for r in geo_ids]
         for geo_id in geo_ids:
             geo_data = json.loads(GeoIds.query.filter(GeoIds.geo_id == geo_id).first().geo_data)
             geo_data_to_return = {}
             if s2_index and s2_indexes_to_remove != -1:
                 geo_data_to_return = Utils.get_specific_s2_index_geo_data(json.dumps(geo_data), s2_indexes_to_remove)
-            for s2_cell_token_20 in s2_cell_tokens_20:
-                if s2_cell_token_20 in geo_data['20']:
-                    geo_data_to_return['Geo JSON'] = Utils.get_geo_json(geo_data['wkt'])
-                    fields_to_return.append({geo_id: geo_data_to_return})
-                    break
+            geo_data_to_return['Geo JSON'] = Utils.get_geo_json(geo_data['wkt'])
+            fields_to_return.append({geo_id: geo_data_to_return})
         return fields_to_return
 
     @staticmethod
