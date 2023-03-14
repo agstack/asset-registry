@@ -17,6 +17,8 @@ from dbms import app, db
 from dbms.models.geoIdsModel import GeoIds
 from dbms.models.s2CellTokensModel import S2CellTokens
 from dbms.models.cellsGeosMiddleModel import CellsGeosMiddle
+from sqlalchemy import func
+from datetime import date, timedelta
 
 localStorage = localStoragePy('asset-registry', 'text')
 
@@ -80,7 +82,7 @@ class Utils:
                         return jsonify({
                             'message': 'User account not activated. Activate your account for the services.',
                         }), 401
-            except :
+            except:
                 localStorage.clear()
                 return jsonify({
                     'message': 'Need to Login.'
@@ -182,7 +184,7 @@ class Utils:
             db.session.commit()
             return geo_data
         except Exception as e:
-             raise e
+            raise e
 
     @staticmethod
     def fetch_geo_ids_for_cell_tokens(s2_cell_tokens, domain):
@@ -436,3 +438,24 @@ class Utils:
         geojson_string = geojson.dumps(mapping(loads(field_wkt)))
         geojson_dict["geometry"] = json.loads(geojson_string)
         return geojson_dict
+
+    @staticmethod
+    def get_row_count_by_month():
+        """
+        Fetch row count by month
+        :return:
+        """
+        end_date = date.today()
+        start_date = end_date - timedelta(days=365)
+        rows = (
+            db.session.query(
+                func.date_trunc('month', GeoIds.created_at).label('month'),
+                func.count().label('count')
+            )
+            .filter(GeoIds.created_at >= start_date)
+            .group_by(func.date_trunc('month', GeoIds.created_at))
+            .order_by(func.date_trunc('month', GeoIds.created_at))
+            .all()
+        )
+        data_by_month = [{'month': row.month.strftime('%B'), 'count': row.count} for row in rows]
+        return data_by_month

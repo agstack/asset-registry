@@ -8,7 +8,6 @@ from flask_migrate import Migrate
 from dbms import app, db
 from s2_service import S2Service
 from utils import Utils
-
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -411,40 +410,30 @@ def fetch_registered_field_count():
         }), 200)
     except Exception as e:
         return jsonify({
-            'message': 'Fetch count Error',
+            'message': 'Fetch registered field count error!',
             'error': f'{e}'
         }), 401
 
 
-@app.route('/fetch-field-count-date-range', methods=['GET'])
+@app.route('/fetch-field-count-by-month', methods=['GET'])
 @Utils.token_required
-def fetch_field_count_date_range():
+def fetch_field_count_by_month():
     """
-    Fetch Registered Field By Date Count
-    Query Param start_date end_date are provided
+    Fetch Registered Field count by Month, last 12 month
     :return:
     """
     try:
-        args = request.args
-        start_date = args.get("start_date")
-        end_date = args.get("end_date")
-        if start_date is None or end_date is None:
-            return make_response(jsonify({
-                "message": "start_date and end_date is required.",
-            }), 400)
-        count = geoIdsModel.GeoIds.query \
-            .filter(geoIdsModel.GeoIds.created_at.between(start_date, end_date)) \
-            .count()
+        count = Utils.get_row_count_by_month()
         return make_response(jsonify({
-            "message": "fetched Count By Date successfully.",
+            "message": "fetched Count By Month successfully.",
             "count": count,
         }), 200)
     except Exception as e:
         return jsonify({
-            'message': 'Fetch Field Count By Date Error',
+            'message': 'Fetch field counts by month error!',
             'error': f'{e}'
         }), 401
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0')
+    app.run(host='0.0.0.0',port=4000)
