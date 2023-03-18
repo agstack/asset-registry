@@ -10,13 +10,15 @@ class GeoIds(db.Model):
     authority_token = db.Column(db.String())
     geo_data = db.Column(db.JSON)
     s2_cell_tokens = db.relationship('S2CellTokens', secondary='cells_geo_ids', backref='geo_ids')
+    country = db.Column(db.String(), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
-    def __init__(self, geo_id, geo_data, authority_token):
+    def __init__(self, geo_id, geo_data, authority_token, country):
         self.geo_id = geo_id
         self.geo_data = geo_data
         self.authority_token = authority_token
+        self.country = country
 
     def __repr__(self):
         return '<id {}>'.format(self.id)
