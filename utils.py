@@ -474,7 +474,5 @@ class Utils:
             db.session.query(GeoIds.country.label('country'), db.func.count().label('count')).group_by(
                 GeoIds.country).all()
         )
-        print(rows)
         count_by_country = [{'country': row.country, 'count': row.count} for row in rows]
-        print(count_by_country)
         return count_by_country
