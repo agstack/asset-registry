@@ -75,6 +75,7 @@ def register_field_boundary():
     try:
         data = json.loads(request.data.decode('utf-8'))
         field_wkt = data.get('wkt')
+        country = data.get('country')
         threshold = data.get('threshold') or 95
         resolution_level = 20
         field_boundary_geo_json = Utils.get_geo_json(field_wkt)
@@ -111,7 +112,7 @@ def register_field_boundary():
         if not geo_id_exists_wkt:
             geo_data_to_return = None
             geo_data = Utils.register_field_boundary(geo_id, indices, records_list_s2_cell_tokens_middle_table_dict,
-                                                     field_wkt)
+                                                     field_wkt, country)
             if s2_index and s2_indexes_to_remove != -1:
                 geo_data_to_return = Utils.get_specific_s2_index_geo_data(geo_data, s2_indexes_to_remove)
             return jsonify({
@@ -141,7 +142,7 @@ def register_field_boundary():
                 geo_data_to_return = None
                 geo_data = Utils.register_field_boundary(geo_id_l20, indices,
                                                          records_list_s2_cell_tokens_middle_table_dict,
-                                                         field_wkt)
+                                                         field_wkt, country)
                 if s2_index and s2_indexes_to_remove != -1:
                     geo_data_to_return = Utils.get_specific_s2_index_geo_data(geo_data, s2_indexes_to_remove)
                 return jsonify({
@@ -431,6 +432,26 @@ def fetch_field_count_by_month():
     except Exception as e:
         return jsonify({
             'message': 'Fetch field counts by month error!',
+            'error': f'{e}'
+        }), 401
+
+
+@app.route('/fetch-field-count-by-country', methods=['GET'])
+@Utils.token_required
+def fetch_field_count_by_country():
+    """
+    Fetch Registered Field count by Country
+    :return:
+    """
+    try:
+        count = Utils.get_row_count_by_country()
+        return make_response(jsonify({
+            "message": "Fetched count by country successfully.",
+            "count": count,
+        }), 200)
+    except Exception as e:
+        return jsonify({
+            'message': 'Fetch field counts by country error!',
             'error': f'{e}'
         }), 401
 

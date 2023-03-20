@@ -143,13 +143,14 @@ class Utils:
         return exists
 
     @staticmethod
-    def register_field_boundary(geo_id, indices, records_list_s2_cell_tokens_middle_table_dict, field_wkt):
+    def register_field_boundary(geo_id, indices, records_list_s2_cell_tokens_middle_table_dict, field_wkt, country):
         """
         registering the geo id (field boundary) in the database
         :param geo_id:
         :param indices:
         :param records_list_s2_cell_tokens_middle_table_dict:
         :param field_wkt:
+        :param country:
         :return:
         """
         try:
@@ -158,7 +159,7 @@ class Utils:
             domain = Utils.get_domain_from_jwt()
             if domain:
                 authority_token = Utils.get_authority_token_for_domain(domain)
-            geo_id_record = GeoIds(geo_id, geo_data, authority_token)
+            geo_id_record = GeoIds(geo_id, geo_data, authority_token, country)
             # creating the json encoded geo_data for different resolution levels
             for res_level, s2_cell_tokens_records in records_list_s2_cell_tokens_middle_table_dict.items():
                 geo_data[res_level] = indices[res_level]
@@ -462,3 +463,16 @@ class Utils:
         )
         data_by_month = [{'month': row.month.strftime('%B'), 'count': row.count} for row in rows]
         return data_by_month
+
+    @staticmethod
+    def get_row_count_by_country():
+        """
+        Fetch row count by country
+        :return:
+        """
+        rows = (
+            db.session.query(GeoIds.country.label('country'), db.func.count().label('count')).group_by(
+                GeoIds.country).all()
+        )
+        count_by_country = [{'country': row.country, 'count': row.count} for row in rows]
+        return count_by_country
