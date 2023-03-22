@@ -468,4 +468,4 @@ def fetch_field_count_by_country():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=4000)
+    app.run(host='0.0.0.0')
