@@ -91,6 +91,7 @@ pycparser==2.21
 pydantic==1.10.2
 Pygments==2.14.0
 PyJWT==2.6.0
+pyogrio==0.5.1
 pyparsing==3.0.9
 pyproj==3.4.0
 pyrsistent==0.19.3
