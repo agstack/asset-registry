@@ -1,5 +1,4 @@
 import json
-# import fiona
 import geopandas as gpd
 import requests
 from localStoragePy import localStoragePy
@@ -9,6 +8,7 @@ from dbms import app, db
 from s2_service import S2Service
 from utils import Utils
 from dotenv import load_dotenv
+from shapely.geometry import Point
 
 load_dotenv()
 localStorage = localStoragePy('asset-registry', 'text')
@@ -73,12 +73,23 @@ def register_field_boundary():
     Registering a field boundary against a Geo Id
     """
     try:
+        # read shp file for country
+        worldShpFile = app.static_folder + '/99bfd9e7-bb42-4728-87b5-07f8c8ac631c2020328-1-1vef4ev.lu5nk.shp'
+        wrs_gdf = gpd.read_file(worldShpFile)
+        wrs_gdf = wrs_gdf.to_crs(4326)
         data = json.loads(request.data.decode('utf-8'))
         field_wkt = data.get('wkt')
-        country = data.get('country')
         threshold = data.get('threshold') or 95
         resolution_level = 20
         field_boundary_geo_json = Utils.get_geo_json(field_wkt)
+        # set lat lng from geoJson first coordinate.
+        lat = field_boundary_geo_json['geometry']['coordinates'][0][0][1]
+        lng = field_boundary_geo_json['geometry']['coordinates'][0][0][0]
+        p = Point([lng, lat])
+        try:
+            country = wrs_gdf[wrs_gdf.contains(p)].reset_index(drop=True).CNTRY_NAME.iloc[0]
+        except Exception as e:
+            country = ''
         are_in_acres = Utils.get_are_in_acres(field_wkt)
         if are_in_acres > 1000:
             return make_response(jsonify({
