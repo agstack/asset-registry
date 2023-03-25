@@ -20,6 +20,7 @@ from dbms.models.s2CellTokensModel import S2CellTokens
 from dbms.models.cellsGeosMiddleModel import CellsGeosMiddle
 from sqlalchemy import func
 from datetime import date, timedelta
+import geopandas as gpd
 
 localStorage = localStoragePy('asset-registry', 'text')
 
@@ -476,3 +477,18 @@ class Utils:
         )
         count_by_country = [{'country': row.country, 'count': row.count} for row in rows]
         return count_by_country
+
+    @staticmethod
+    def get_country_from_point(p):
+        """
+        Fetch country name
+        :return:
+        """
+        # read shp file for country
+        worldShpFile = app.static_folder + '/99bfd9e7-bb42-4728-87b5-07f8c8ac631c2020328-1-1vef4ev.lu5nk.shp'
+        wrs_gdf = gpd.read_file(worldShpFile)
+        wrs_gdf = wrs_gdf.to_crs(4326)
+        try:
+            return wrs_gdf[wrs_gdf.contains(p)].reset_index(drop=True).CNTRY_NAME.iloc[0]
+        except Exception as e:
+            return ''
