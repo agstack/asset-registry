@@ -492,3 +492,20 @@ class Utils:
             return wrs_gdf[wrs_gdf.contains(p)].reset_index(drop=True).CNTRY_NAME.iloc[0]
         except Exception as e:
             return ''
+
+    @staticmethod
+    def get_fields_count_by_domain():
+        """
+        Fetch the fields count registered against the domains
+        :return:
+        """
+        try:
+            rows = (
+                db.session.query(GeoIds.authority_token.label('authority_token'),
+                                 db.func.count().label('count')).group_by(GeoIds.authority_token).all()
+            )
+            count_by_authority_tokens = [{'authority_token': row.authority_token, 'count': row.count} for row in rows if
+                                         row.authority_token is not None]
+            return count_by_authority_tokens
+        except Exception as e:
+            raise e
