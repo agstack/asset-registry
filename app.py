@@ -474,6 +474,11 @@ def fetch_field_count_by_domains():
         # getting the domains against the authority tokens from User Registry
         res = requests.post(app.config['USER_REGISTRY_BASE_URL'] + '/fields-count-by-domain', json=authority_tokens,
                             timeout=2)
+        if res.json().get("error") is not None:
+            return jsonify({
+                'message': 'Fetch field counts by domain error',
+                'error': f'{res.json()["error"]}'
+            }), 400
         authority_token_dict = res.json()["authority_token_dict"]
         field_count_by_domain = [{'domain': authority_token_dict[count_by_authority_token["authority_token"]],
                                   'count': count_by_authority_token["count"]} for count_by_authority_token in
