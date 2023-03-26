@@ -486,7 +486,7 @@ def fetch_field_count_by_domains():
         return jsonify({
             'message': 'Fetch field counts by domain error!',
             'error': f'{e}'
-        }), 401
+        }), 400
 
 
 @app.route('/populate-country-in-geo-ids', methods=['POST'])
