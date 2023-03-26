@@ -460,6 +460,35 @@ def fetch_field_count_by_country():
         }), 401
 
 
+@app.route('/fetch-field-count-by-domain', methods=['GET'])
+@Utils.token_required
+def fetch_field_count_by_domains():
+    """
+    Fetch Fields count by the Domains(authorized)
+    :return:
+    """
+    try:
+        count_by_authority_tokens = Utils.get_fields_count_by_domain()
+        authority_tokens = [count_by_authority_token['authority_token'] for count_by_authority_token in
+                            count_by_authority_tokens]
+        # getting the domains against the authority tokens from User Registry
+        res = requests.post(app.config['USER_REGISTRY_BASE_URL'] + '/fields-count-by-domain', json=authority_tokens,
+                            timeout=2)
+        authority_token_dict = res.json()["authority_token_dict"]
+        field_count_by_domain = [{'domain': authority_token_dict[count_by_authority_token["authority_token"]],
+                                  'count': count_by_authority_token["count"]} for count_by_authority_token in
+                                 count_by_authority_tokens]
+        return make_response(jsonify({
+            "message": "Fetched count by domains successfully.",
+            "count": field_count_by_domain,
+        }), 200)
+    except Exception as e:
+        return jsonify({
+            'message': 'Fetch field counts by domain error!',
+            'error': f'{e}'
+        }), 401
+
+
 @app.route('/populate-country-in-geo-ids', methods=['POST'])
 def populate_country_in_geo_ids():
     # Get all rows where country is empty or None
@@ -481,4 +510,4 @@ def populate_country_in_geo_ids():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0')
+    app.run(host='0.0.0.0', port=4000)
