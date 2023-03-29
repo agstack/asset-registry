@@ -474,7 +474,7 @@ def fetch_field_count_by_domains():
                             count_by_authority_tokens]
         # getting the domains against the authority tokens from User Registry
         csrf_token = generate_csrf()
-        headers = {'X-CSRFToken': csrf_token, 'authority_tokens': str(authority_tokens)}
+        headers = {'X-CSRFToken': csrf_token, 'Authority-Tokens': str(authority_tokens)}
         res = requests.get(app.config['USER_REGISTRY_BASE_URL'] + '/fields-count-by-domain', json=authority_tokens,
                            timeout=2, headers=headers)
         if res.json().get("error") is not None:
