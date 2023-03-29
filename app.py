@@ -9,6 +9,7 @@ from utils import Utils
 from dotenv import load_dotenv
 from shapely.geometry import Point
 from shapely.wkt import loads as load_wkt
+from flask_wtf.csrf import generate_csrf
 
 load_dotenv()
 localStorage = localStoragePy('asset-registry', 'text')
@@ -395,7 +396,7 @@ def authorize_a_domain():
     req_body = {'domain': domain}
     res = requests.post(app.config['USER_REGISTRY_BASE_URL'] + '/domains', json=req_body, timeout=2)
     return jsonify({
-        "message": res.json()["message"]
+        "message": res.json()["Message"]
     }), 200
 
 
@@ -472,8 +473,10 @@ def fetch_field_count_by_domains():
         authority_tokens = [count_by_authority_token['authority_token'] for count_by_authority_token in
                             count_by_authority_tokens]
         # getting the domains against the authority tokens from User Registry
-        res = requests.post(app.config['USER_REGISTRY_BASE_URL'] + '/fields-count-by-domain', json=authority_tokens,
-                            timeout=2)
+        csrf_token = generate_csrf()
+        headers = {'X-CSRFToken': csrf_token}
+        res = requests.get(app.config['USER_REGISTRY_BASE_URL'] + '/fields-count-by-domain', json=authority_tokens,
+                            timeout=2, headers=headers)
         if res.json().get("error") is not None:
             return jsonify({
                 'message': 'Fetch field counts by domain error',
