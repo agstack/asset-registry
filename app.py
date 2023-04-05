@@ -49,9 +49,14 @@ def index(token):
 @Utils.token_required
 def logout():
     localStorage.clear()
-    return jsonify({
-        "message": "Logged out successfully."
-    })
+    print('here in ar logout')
+    headers = {'content-type': 'application/json'}
+    data = jsonify({'asset_registry': True})
+    resp = requests.get(app.config['USER_REGISTRY_BASE_URL'] + '/logout',
+                        json=data,
+                        headers=headers)
+    print(resp.content)
+    return resp.content, resp.status_code
 
 
 # @app.route('/kml-to-wkt', methods=['POST'])
