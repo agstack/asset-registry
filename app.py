@@ -41,17 +41,60 @@ def index(token):
 
 
 @app.route('/logout', methods=['GET'])
-@Utils.token_required
 def logout():
+    refresh_token = request.cookies.get('refresh_token_cookie')
+    header = request.headers.get('access_token_cookie')
+    print(header)
     localStorage.clear()
-    print('here in ar logout')
     headers = {'content-type': 'application/json'}
-    data = jsonify({'asset_registry': True})
+    data = {'asset_registry': True}
     resp = requests.get(app.config['USER_REGISTRY_BASE_URL'] + '/logout',
                         json=data,
-                        headers=headers)
-    print(resp.content)
-    return resp.content, resp.status_code
+                        headers=headers, cookies={'refresh_token_cookie': refresh_token, 'access_token_cookie': ''})
+    if resp.status_code == 200:
+        resp_fe = make_response(jsonify({"message": "Successfully logged out"}), 200)
+        resp_fe.set_cookie('access_token_cookie', '', expires=0)
+        resp_fe.set_cookie('refresh_token_cookie', '', expires=0)
+        return resp_fe
+    json_res = json.loads(resp.content.decode())
+    resp_fe = make_response(json_res, resp.status_code)
+    return resp_fe
+
+
+@app.route('/login', methods=['POST'])
+def login():
+    if request.is_json:
+        data = request.get_json()
+        email = data.get('email')
+        password = data.get('password')
+        if email is None or password is None:
+            return jsonify({'message': 'Missing arguments'}), 400
+        data['asset_registry'] = True
+        try:
+            res = requests.post(app.config['USER_REGISTRY_BASE_URL'], json=data)
+            json_res = json.loads(res.content.decode())
+
+        except Exception as e:
+            return jsonify({
+                'message': 'User Registry Error',
+                'error': f'{e}'
+            }), 401
+        if res.status_code == 200:
+            try:
+                response_fe = make_response(jsonify(json_res), 200)
+                localStorage.setItem('token', json_res.get('access_token'))
+                localStorage.setItem('refresh_token', json_res.get('refresh_token'))
+                response_fe.set_cookie('refresh_token_cookie', json_res.get('refresh_token'))
+                response_fe.set_cookie('access_token_cookie', json_res.get('access_token'))
+                return response_fe
+            except TypeError:
+                response_fe = make_response(jsonify(json_res), 401)
+                return response_fe
+        else:
+            response_fe = make_response(jsonify(json_res), 401)
+            return response_fe
+    return jsonify({'message': 'Missing JSON in request'}), 400
+
 
 
 # @app.route('/kml-to-wkt', methods=['POST'])
