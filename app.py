@@ -25,11 +25,6 @@ def index(token):
     """
     Endpoint to receive tokens from user-registry and return a response
     """
-    if request.is_json:
-        if token is not None:
-            return jsonify({"token": token})
-        else:
-            return jsonify({'message': 'No token found'})
     try:
         if token is not None:
             localStorage.setItem('token', token)
@@ -164,6 +159,7 @@ def register_field_boundary():
                     "Geo JSON registered": Utils.get_geo_json(geo_id_exists_wkt_l20)
                 }), 200)
     except Exception as e:
+        # noinspection PyPackageRequirements
         return jsonify({
             'message': 'Register Field Boundary Error',
             'error': f'{e}'
