@@ -1,6 +1,5 @@
 import json
 import requests
-from localStoragePy import localStoragePy
 from flask import jsonify, request, make_response
 from flask_migrate import Migrate
 from dbms import app, db
@@ -12,7 +11,6 @@ from shapely.wkt import loads as load_wkt
 from flask_wtf.csrf import generate_csrf
 
 load_dotenv()
-localStorage = localStoragePy('asset-registry', 'text')
 
 from dbms.models import geoIdsModel, s2CellTokensModel, cellsGeosMiddleModel
 
@@ -21,17 +19,12 @@ migrate = Migrate(app, db)
 
 @app.route('/', methods=["GET"])
 @Utils.fetch_token
-def index(token):
+def index(token, refresh_token):
     """
     Endpoint to receive tokens from user-registry and return a response
     """
     try:
-        if token is not None:
-            localStorage.setItem('token', token)
-            status = 200
-        else:
-            status = 204
-        to_return = {'status': status}
+        to_return = {'access_token': token, 'refresh_token': refresh_token}
         return jsonify(to_return)
     except Exception as e:
         return jsonify({
@@ -43,10 +36,56 @@ def index(token):
 @app.route('/logout', methods=['GET'])
 @Utils.token_required
 def logout():
-    localStorage.clear()
-    return jsonify({
-        "message": "Logged out successfully."
-    })
+    try:
+        refresh_token = Utils.get_bearer_token()
+        if not refresh_token:
+            return jsonify({
+                'message': 'Asset Registry Logout Error',
+                'error': 'No token.'
+            }), 401
+        resp_fe = make_response(jsonify({"message": "Successfully logged out"}), 200)
+        # unset session cookies for postman response
+        resp_fe.set_cookie('access_token_cookie', '', expires=0)
+        resp_fe.set_cookie('refresh_token_cookie', '', expires=0)
+        return resp_fe
+    except Exception as e:
+        return jsonify({
+            'message': 'Asset Registry Logout Error',
+            'error': f'{e}'
+        }), 401
+
+
+@app.route('/login', methods=['POST'])
+def login():
+    if request.is_json:
+        data = request.get_json()
+        email = data.get('email')
+        password = data.get('password')
+        if email is None or password is None:
+            return jsonify({'message': 'Missing arguments'}), 400
+        data['asset_registry'] = True
+        try:
+            res = requests.post(app.config['USER_REGISTRY_BASE_URL'], json=data)
+            json_res = json.loads(res.content.decode())
+
+        except Exception as e:
+            return jsonify({
+                'message': 'User Registry Error',
+                'error': f'{e}'
+            }), 401
+        if res.status_code == 200:
+            try:
+                response_fe = make_response(jsonify(json_res), 200)
+                response_fe.set_cookie('refresh_token_cookie', json_res.get('refresh_token'))
+                response_fe.set_cookie('access_token_cookie', json_res.get('access_token'))
+                return response_fe
+            except TypeError:
+                response_fe = make_response(jsonify(json_res), 401)
+                return response_fe
+        else:
+            response_fe = make_response(jsonify(json_res), 401)
+            return response_fe
+    return jsonify({'message': 'Missing JSON in request'}), 400
 
 
 # @app.route('/kml-to-wkt', methods=['POST'])
