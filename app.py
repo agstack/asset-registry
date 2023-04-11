@@ -9,8 +9,10 @@ from dotenv import load_dotenv
 from shapely.geometry import Point
 from shapely.wkt import loads as load_wkt
 from flask_wtf.csrf import generate_csrf
+from localStoragePy import localStoragePy
 
 load_dotenv()
+localStorage = localStoragePy('asset-registry', 'text')
 
 from dbms.models import geoIdsModel, s2CellTokensModel, cellsGeosMiddleModel
 
@@ -25,6 +27,8 @@ def index(token, refresh_token):
     """
     try:
         to_return = {'access_token': token, 'refresh_token': refresh_token}
+        localStorage.setItem('access_token', token)
+        localStorage.setItem('refresh_token', refresh_token)
         return jsonify(to_return)
     except Exception as e:
         return jsonify({
@@ -44,7 +48,7 @@ def logout():
                 'error': 'No token.'
             }), 401
         resp_fe = make_response(jsonify({"message": "Successfully logged out"}), 200)
-        # unset session cookies for postman response
+        localStorage.clear()
         resp_fe.set_cookie('access_token_cookie', '', expires=0)
         resp_fe.set_cookie('refresh_token_cookie', '', expires=0)
         return resp_fe
@@ -550,6 +554,23 @@ def populate_country_in_geo_ids():
         row.country = country
         db.session.commit()
     return jsonify({'message': 'Countries updated successfully'}), 200
+
+
+@app.route('/fetch-session-cookies', methods=['GET'])
+def fetch_session_cookies():
+    """
+    Fetch the Session Cookies from User Registry
+    :return:
+    """
+    try:
+        access_token = localStorage.getItem('access_token')
+        refresh_token = localStorage.getItem('refresh_token')
+        return make_response(jsonify({"access_token": access_token, "refresh_token": refresh_token}))
+    except Exception as e:
+        return jsonify({
+            'message': 'Fetch Session Cookies Error!',
+            'error': f'{e}'
+        }), 400
 
 
 if __name__ == '__main__':
