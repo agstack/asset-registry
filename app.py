@@ -1,6 +1,5 @@
 import json
 import requests
-from localStoragePy import localStoragePy
 from flask import jsonify, request, make_response
 from flask_migrate import Migrate
 from dbms import app, db
@@ -10,6 +9,7 @@ from dotenv import load_dotenv
 from shapely.geometry import Point
 from shapely.wkt import loads as load_wkt
 from flask_wtf.csrf import generate_csrf
+from localStoragePy import localStoragePy
 
 load_dotenv()
 localStorage = localStoragePy('asset-registry', 'text')
@@ -21,17 +21,14 @@ migrate = Migrate(app, db)
 
 @app.route('/', methods=["GET"])
 @Utils.fetch_token
-def index(token):
+def index(token, refresh_token):
     """
     Endpoint to receive tokens from user-registry and return a response
     """
     try:
-        if token is not None:
-            localStorage.setItem('token', token)
-            status = 200
-        else:
-            status = 204
-        to_return = {'status': status}
+        to_return = {'access_token': token, 'refresh_token': refresh_token}
+        localStorage.setItem('access_token', token)
+        localStorage.setItem('refresh_token', refresh_token)
         return jsonify(to_return)
     except Exception as e:
         return jsonify({
@@ -41,24 +38,25 @@ def index(token):
 
 
 @app.route('/logout', methods=['GET'])
+@Utils.token_required
 def logout():
-    refresh_token = request.cookies.get('refresh_token_cookie')
-    header = request.headers.get('access_token_cookie')
-    print(header)
-    localStorage.clear()
-    headers = {'content-type': 'application/json'}
-    data = {'asset_registry': True}
-    resp = requests.get(app.config['USER_REGISTRY_BASE_URL'] + '/logout',
-                        json=data,
-                        headers=headers, cookies={'refresh_token_cookie': refresh_token, 'access_token_cookie': ''})
-    if resp.status_code == 200:
+    try:
+        refresh_token = Utils.get_bearer_token()
+        if not refresh_token:
+            return jsonify({
+                'message': 'Asset Registry Logout Error',
+                'error': 'No token.'
+            }), 401
         resp_fe = make_response(jsonify({"message": "Successfully logged out"}), 200)
+        localStorage.clear()
         resp_fe.set_cookie('access_token_cookie', '', expires=0)
         resp_fe.set_cookie('refresh_token_cookie', '', expires=0)
         return resp_fe
-    json_res = json.loads(resp.content.decode())
-    resp_fe = make_response(json_res, resp.status_code)
-    return resp_fe
+    except Exception as e:
+        return jsonify({
+            'message': 'Asset Registry Logout Error',
+            'error': f'{e}'
+        }), 401
 
 
 @app.route('/login', methods=['POST'])
@@ -82,8 +80,6 @@ def login():
         if res.status_code == 200:
             try:
                 response_fe = make_response(jsonify(json_res), 200)
-                localStorage.setItem('token', json_res.get('access_token'))
-                localStorage.setItem('refresh_token', json_res.get('refresh_token'))
                 response_fe.set_cookie('refresh_token_cookie', json_res.get('refresh_token'))
                 response_fe.set_cookie('access_token_cookie', json_res.get('access_token'))
                 return response_fe
@@ -94,7 +90,6 @@ def login():
             response_fe = make_response(jsonify(json_res), 401)
             return response_fe
     return jsonify({'message': 'Missing JSON in request'}), 400
-
 
 
 # @app.route('/kml-to-wkt', methods=['POST'])
@@ -559,6 +554,23 @@ def populate_country_in_geo_ids():
         row.country = country
         db.session.commit()
     return jsonify({'message': 'Countries updated successfully'}), 200
+
+
+@app.route('/fetch-session-cookies', methods=['GET'])
+def fetch_session_cookies():
+    """
+    Fetch the Session Cookies from User Registry
+    :return:
+    """
+    try:
+        access_token = localStorage.getItem('access_token')
+        refresh_token = localStorage.getItem('refresh_token')
+        return make_response(jsonify({"access_token": access_token, "refresh_token": refresh_token}))
+    except Exception as e:
+        return jsonify({
+            'message': 'Fetch Session Cookies Error!',
+            'error': f'{e}'
+        }), 400
 
 
 if __name__ == '__main__':

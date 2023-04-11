@@ -7,12 +7,12 @@ import shapely
 import jwt
 from functools import wraps, partial
 from flask import request, jsonify
-from localStoragePy import localStoragePy
 from shapely import ops
 from shapely.wkt import loads
 from shapely.geometry import mapping
 import geojson
 from sqlalchemy import and_
+from localStoragePy import localStoragePy
 
 from dbms import app, db
 from dbms.models.geoIdsModel import GeoIds
@@ -23,7 +23,6 @@ from datetime import date, timedelta
 import geopandas as gpd
 
 localStorage = localStoragePy('asset-registry', 'text')
-
 
 class Utils:
     """
@@ -36,25 +35,26 @@ class Utils:
         @wraps(f)
         def decorated(*args, **kwargs):
             try:
-                token = None
-                # jwt is passed in the request header
+                token = Utils.get_bearer_token()
                 headers = request.headers
-                bearer = headers.get('Authorization')  # Bearer JWT token here
-                if bearer:
-                    token = bearer.split()[1]  # JWT token
+                refresh_token = headers.get('refresh_token')
+                # jwt is passed in the request header
+                if not token and request.cookies.get('access_token_cookie') and request.cookies.get(
+                        'refresh_token_cookie'):  # check in cookies if not in headers
+                    token = request.cookies.get('access_token_cookie')
+                    refresh_token = request.cookies.get('refresh_token_cookie')
+
                 # return 401 if token is not passed
                 if not token:
                     return jsonify({'message': 'Token is missing !!'}), 401
-
                 try:
                     # decoding the payload to fetch the stored details
                     jwt.decode(token, app.config['SECRET_KEY'], algorithms="HS256")
                 except:
-                    localStorage.clear()
                     return jsonify({
                         'message': 'Token is invalid !!'
                     }), 401
-                return f(token, *args, **kwargs)
+                return f(token, refresh_token, *args, **kwargs)
             except Exception as e:
                 return jsonify({
                     'message': 'Authentication Error',
@@ -68,13 +68,9 @@ class Utils:
     def token_required(f):
         @wraps(f)
         def decorated(*args, **kwargs):
-            token = None
-            headers = request.headers
-            bearer = headers.get('Authorization')  # Bearer JWT token here
-            if bearer:
-                token = bearer.split()[1]  # JWT token
-            if token is None:
-                token = localStorage.getItem('token')
+            token = Utils.get_bearer_token()
+            if not token:
+                token = localStorage.getItem('access_token')
             try:
                 # decoding the payload to check for valid token
                 decoded_token = jwt.decode(token, app.config['SECRET_KEY'], algorithms="HS256")
@@ -85,7 +81,6 @@ class Utils:
                             'message': 'User account not activated. Activate your account for the services.',
                         }), 401
             except:
-                localStorage.clear()
                 return jsonify({
                     'message': 'Need to Login.'
                 }), 401
@@ -229,7 +224,6 @@ class Utils:
             percentage_match = len(set(s2_index__l13_list) & set(geo_id_cell_tokens)) / float(
                 len(set(s2_index__l13_list) | set(geo_id_cell_tokens))) * 100
             if percentage_match > threshold:
-                print(f'PERCENTAGE MATCH ::: {percentage_match} GEO ID ::: {matched_geo_id}')
                 percentage_matched_geo_ids.append(matched_geo_id)
         return percentage_matched_geo_ids
 
@@ -363,9 +357,7 @@ class Utils:
         Get domain of the logged in user
         :return:
         """
-        token = localStorage.getItem('token')
-        if not token:
-            return None
+        token = Utils.get_bearer_token()
         domain = jwt.decode(token, app.config['SECRET_KEY'], algorithms="HS256")['domain']
         return domain
 
@@ -509,3 +501,11 @@ class Utils:
             return count_by_authority_tokens
         except Exception as e:
             raise e
+
+    @staticmethod
+    def get_bearer_token():
+        token = None
+        bearer = request.headers.get('Authorization')  # Bearer JWT token here
+        if bearer and len(bearer.split()) > 1:
+            token = bearer.split()[1]  # JWT token
+        return token
