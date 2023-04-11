@@ -12,6 +12,7 @@ from shapely.wkt import loads
 from shapely.geometry import mapping
 import geojson
 from sqlalchemy import and_
+from localStoragePy import localStoragePy
 
 from dbms import app, db
 from dbms.models.geoIdsModel import GeoIds
@@ -21,6 +22,7 @@ from sqlalchemy import func
 from datetime import date, timedelta
 import geopandas as gpd
 
+localStorage = localStoragePy('asset-registry', 'text')
 
 class Utils:
     """
@@ -67,8 +69,8 @@ class Utils:
         @wraps(f)
         def decorated(*args, **kwargs):
             token = Utils.get_bearer_token()
-            if not token and request.cookies.get('access_token_cookie'):  # check in cookies if not in headers
-                token = request.cookies.get('access_token_cookie')
+            if not token:
+                token = localStorage.getItem('access_token')
             try:
                 # decoding the payload to check for valid token
                 decoded_token = jwt.decode(token, app.config['SECRET_KEY'], algorithms="HS256")
