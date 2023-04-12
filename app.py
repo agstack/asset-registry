@@ -566,8 +566,6 @@ def fetch_session_cookies():
     :return:
     """
     try:
-        # localStorage.removeItem('access_token')
-        # localStorage.removeItem('refresh_token')
         access_token = localStorage.getItem('access_token')
         refresh_token = localStorage.getItem('refresh_token')
         return make_response(jsonify({"access_token": access_token, "refresh_token": refresh_token}))
