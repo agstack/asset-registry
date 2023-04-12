@@ -72,21 +72,19 @@ def login():
             return jsonify({'message': 'Missing arguments'}), 400
         data['asset_registry'] = True
         try:
-            requests.post(app.config['USER_REGISTRY_BASE_URL'], json=data)
+            res = requests.post(app.config['USER_REGISTRY_BASE_URL'], json=data)
+            access_token = res.json()['access_token']
+            refresh_token = res.json()['refresh_token']
         except Exception as e:
             return jsonify({
                 'message': 'User Registry Error',
                 'error': f'{e}'
             }), 401
         if res.status_code == 200:
-            try:
-                response_fe = make_response(jsonify(json_res), 200)
-                response_fe.set_cookie('refresh_token_cookie', json_res.get('refresh_token'))
-                response_fe.set_cookie('access_token_cookie', json_res.get('access_token'))
-                return response_fe
-            except TypeError:
-                response_fe = make_response(jsonify(json_res), 401)
-                return response_fe
+            response_fe = make_response(res.json(), 200)
+            response_fe.set_cookie('refresh_token_cookie', access_token)
+            response_fe.set_cookie('access_token_cookie', refresh_token)
+            return response_fe
         else:
             response_fe = make_response(jsonify(json_res), 401)
             return response_fe
