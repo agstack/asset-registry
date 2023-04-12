@@ -72,9 +72,7 @@ def login():
             return jsonify({'message': 'Missing arguments'}), 400
         data['asset_registry'] = True
         try:
-            res = requests.post(app.config['USER_REGISTRY_BASE_URL'], json=data)
-            json_res = json.loads(res.content.decode())
-
+            requests.post(app.config['USER_REGISTRY_BASE_URL'], json=data)
         except Exception as e:
             return jsonify({
                 'message': 'User Registry Error',
