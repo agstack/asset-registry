@@ -47,8 +47,11 @@ def logout():
                 'message': 'Asset Registry Logout Error',
                 'error': 'No token.'
             }), 401
+        tokens = {'Authorization': 'Bearer' + refresh_token, 'X-FROM-ASSET-REGISTRY': "True"}
+        requests.get(app.config['USER_REGISTRY_BASE_URL'] + '/logout', headers=tokens)
         resp_fe = make_response(jsonify({"message": "Successfully logged out"}), 200)
-        localStorage.clear()
+        localStorage.removeItem('access_token')
+        localStorage.removeItem('refresh_token')
         resp_fe.set_cookie('access_token_cookie', '', expires=0)
         resp_fe.set_cookie('refresh_token_cookie', '', expires=0)
         return resp_fe

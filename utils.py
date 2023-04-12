@@ -37,7 +37,7 @@ class Utils:
             try:
                 token = Utils.get_bearer_token()
                 headers = request.headers
-                refresh_token = headers.get('Refresh-Token')
+                refresh_token = headers.get('X-Refresh-Token')
                 # jwt is passed in the request header
                 if not token and request.cookies.get('access_token_cookie') and request.cookies.get(
                         'refresh_token_cookie'):  # check in cookies if not in headers
