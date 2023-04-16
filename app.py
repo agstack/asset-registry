@@ -34,7 +34,7 @@ def index(token, refresh_token):
         return jsonify({
             'message': 'Asset Registry Error',
             'error': f'{e}'
-        }), 401
+        }), 400
 
 
 @app.route('/logout', methods=['GET'])
@@ -46,7 +46,7 @@ def logout():
             return jsonify({
                 'message': 'Asset Registry Logout Error',
                 'error': 'No token.'
-            }), 401
+            }), 400
         tokens = {'Authorization': 'Bearer' + refresh_token, 'X-FROM-ASSET-REGISTRY': "True"}
         requests.get(app.config['USER_REGISTRY_BASE_URL'] + '/logout', headers=tokens)
         resp_fe = make_response(jsonify({"message": "Successfully logged out"}), 200)
@@ -59,7 +59,7 @@ def logout():
         return jsonify({
             'message': 'Asset Registry Logout Error',
             'error': f'{e}'
-        }), 401
+        }), 400
 
 
 @app.route('/login', methods=['POST'])
@@ -79,14 +79,14 @@ def login():
             return jsonify({
                 'message': 'User Registry Error',
                 'error': f'{e}'
-            }), 401
+            }), 400
         if res.status_code == 200:
             response_fe = make_response(jsonify(json_res), 200)
             response_fe.set_cookie('refresh_token_cookie', json_res.get('refresh_token'))
             response_fe.set_cookie('access_token_cookie', json_res.get('access_token'))
             return response_fe
         else:
-            response_fe = make_response(jsonify(json_res), 401)
+            response_fe = make_response(jsonify(json_res), 400)
             return response_fe
     return jsonify({'message': 'Missing JSON in request'}), 400
 
@@ -205,7 +205,7 @@ def register_field_boundary():
         return jsonify({
             'message': 'Register Field Boundary Error',
             'error': f'{e}'
-        }), 401
+        }), 400
 
 
 @app.route('/fetch-overlapping-fields', methods=['POST'])
@@ -243,7 +243,7 @@ def fetch_overlapping_fields():
         return jsonify({
             'message': 'Fetch Overlapping Fields Error',
             'error': f'{e}'
-        }), 401
+        }), 400
 
 
 @app.route('/fetch-field/<geo_id>', methods=['GET'])
@@ -281,7 +281,7 @@ def fetch_field(geo_id):
         return jsonify({
             'message': 'Fetch Field Error',
             'error': f'{e}'
-        }), 401
+        }), 400
 
 
 @app.route('/fetch-field-wkt/<geo_id>', methods=['GET'])
@@ -292,13 +292,7 @@ def fetch_field_wkt(geo_id):
     :return:
     """
     try:
-        field = geoIdsModel.GeoIds.query \
-            .filter_by(geo_id=geo_id) \
-            .first()
-        if not field:
-            return make_response(jsonify({
-                "message": "Field not found, invalid Geo Id."
-            }), 404)
+        field = Utils.fetch_field_by_geoid(geo_id)
         return make_response(jsonify({
             "message": "WKT fetched successfully.",
             "GEO Id": geo_id,
@@ -308,7 +302,7 @@ def fetch_field_wkt(geo_id):
         return jsonify({
             'message': 'Fetch Field WKT Error',
             'error': f'{e}'
-        }), 401
+        }), 400
 
 
 @app.route('/get-percentage-overlap-two-fields', methods=['POST'])
@@ -340,7 +334,7 @@ def get_percentage_overlap_two_fields():
         return jsonify({
             'message': 'Get Percentage Overlap two Fields Error',
             'error': f'{e}'
-        }), 401
+        }), 400
 
 
 @app.route('/fetch-fields-for-a-point', methods=['POST'])
@@ -373,7 +367,7 @@ def fetch_fields_for_a_point():
         return jsonify({
             'message': 'Fetch Fields for a Point Error',
             'error': f'{e}'
-        }), 401
+        }), 400
 
 
 @app.route('/fetch-bounding-box-fields', methods=['POST'])
@@ -403,7 +397,7 @@ def fetch_bounding_box_fields():
         return jsonify({
             'message': 'Fetch Bounding Box Fields Error',
             'error': f'{e}'
-        }), 401
+        }), 400
 
 
 @app.route("/domains", methods=['GET'])
@@ -456,7 +450,7 @@ def fetch_registered_field_count():
         return jsonify({
             'message': 'Fetch registered field count error!',
             'error': f'{e}'
-        }), 401
+        }), 400
 
 
 @app.route('/fetch-field-count-by-month', methods=['GET'])
@@ -476,7 +470,7 @@ def fetch_field_count_by_month():
         return jsonify({
             'message': 'Fetch field counts by month error!',
             'error': f'{e}'
-        }), 401
+        }), 400
 
 
 @app.route('/fetch-field-count-by-country', methods=['GET'])
@@ -496,7 +490,7 @@ def fetch_field_count_by_country():
         return jsonify({
             'message': 'Fetch field counts by country error!',
             'error': f'{e}'
-        }), 401
+        }), 400
 
 
 @app.route('/fetch-field-count-by-domain', methods=['GET'])
@@ -568,6 +562,32 @@ def fetch_session_cookies():
     except Exception as e:
         return jsonify({
             'message': 'Fetch Session Cookies Error!',
+            'error': f'{e}'
+        }), 400
+
+
+@app.route('/fetch-field-centroid/<geo_id>', methods=['GET'])
+def fetch_field_centroid(geo_id):
+    """
+    Fetch a Field Centroid for the provided Geo Id
+    :param geo_id:
+    :return:
+    """
+    try:
+        field = Utils.fetch_field_by_geoid(geo_id)
+        field_wkt = json.loads(field.geo_data)['wkt']
+        if not field_wkt:
+            return make_response(jsonify({
+                "message": "Field WKT not found, fetch Field Centroid Error."
+            }), 400)
+        centroid = Utils.fetch_field_centroid_by_wkt(field_wkt)
+        return make_response(jsonify({
+            "message": "Centroid fetched successfully.",
+            "Centroid": centroid,
+        }), 200)
+    except Exception as e:
+        return jsonify({
+            'message': 'Fetch Field Centroid Error',
             'error': f'{e}'
         }), 400
 
