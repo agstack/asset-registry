@@ -15,6 +15,7 @@ from sqlalchemy import and_
 from localStoragePy import localStoragePy
 
 from dbms import app, db
+from dbms.models import geoIdsModel
 from dbms.models.geoIdsModel import GeoIds
 from dbms.models.s2CellTokensModel import S2CellTokens
 from dbms.models.cellsGeosMiddleModel import CellsGeosMiddle
@@ -23,6 +24,7 @@ from datetime import date, timedelta
 import geopandas as gpd
 
 localStorage = localStoragePy('asset-registry', 'text')
+
 
 class Utils:
     """
@@ -499,6 +501,29 @@ class Utils:
             count_by_authority_tokens = [{'authority_token': row.authority_token, 'count': row.count} for row in rows if
                                          row.authority_token is not None]
             return count_by_authority_tokens
+        except Exception as e:
+            raise e
+
+    @staticmethod
+    def fetch_field_by_geoid(geo_id):
+        try:
+            field = geoIdsModel.GeoIds.query \
+                .filter_by(geo_id=geo_id) \
+                .first()
+            if not field:
+                raise Exception("Field not found, invalid Geo Id.")
+            return field
+        except Exception as e:
+            raise e
+
+    @staticmethod
+    def fetch_field_centroid_by_wkt(wkt):
+        try:
+            p = shapely.wkt.loads(wkt)
+            c = p.centroid
+            lon = c.x
+            lat = c.y
+            return [lat, lon]
         except Exception as e:
             raise e
 
