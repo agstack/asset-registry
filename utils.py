@@ -553,8 +553,8 @@ class Utils:
         :return:
         """
         try:
-            req_body = {'api_key': api_key, 'client_secret': client_secret}
-            res = requests.get(app.config['USER_REGISTRY_BASE_URL'] + '/verify-api-secret-keys', json=req_body, timeout=2)
+            headers = {'API-KEY': api_key, 'CLIENT-SECRET': client_secret}
+            res = requests.get(app.config['USER_REGISTRY_BASE_URL'] + '/verify-api-secret-keys', headers=headers, timeout=2)
             return res.json()["message"]
         except Exception as e:
             raise e
