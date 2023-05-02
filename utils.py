@@ -70,6 +70,17 @@ class Utils:
     def token_required(f):
         @wraps(f)
         def decorated(*args, **kwargs):
+            # check for api_key and client_secret before jwt
+            auth_keys = request.headers.get('API-KEYS-AUTHENTICATION')
+            if auth_keys:
+                if not request.headers.get('API-KEY') or not request.headers.get('CLIENT-SECRET'):
+                    return jsonify({'message': 'API Key or Client Secret missing!!'}), 401
+                if Utils.verify_api_secret_keys(request.headers.get('API-KEY'), request.headers.get('CLIENT-SECRET')):
+                    return f(*args, **kwargs)
+                else:
+                    return jsonify({
+                        'message': 'Invalid API Key or Client Secret.'
+                    }), 401
             token = Utils.get_bearer_token()
             if not token:
                 token = localStorage.getItem('access_token')
@@ -534,3 +545,16 @@ class Utils:
         if bearer and len(bearer.split()) > 1:
             token = bearer.split()[1]  # JWT token
         return token
+
+    @staticmethod
+    def verify_api_secret_keys(api_key, client_secret):
+        """
+        Verify if the API Key and the Client Secret are valid for a user
+        :return:
+        """
+        try:
+            req_body = {'api_key': api_key, 'client_secret': client_secret}
+            res = requests.post(app.config['USER_REGISTRY_BASE_URL'] + '/verify-api-secret-keys', json=req_body, timeout=2)
+            return res.json()["message"]
+        except Exception as e:
+            raise e
