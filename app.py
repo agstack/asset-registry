@@ -114,6 +114,7 @@ def register_field_boundary():
         data = json.loads(request.data.decode('utf-8'))
         field_wkt = data.get('wkt')
         threshold = data.get('threshold') or 95
+        boundary_type = data.get('boundary_type')
         resolution_level = 20
         field_boundary_geo_json = Utils.get_geo_json(field_wkt)
         # set lat lng from geoJson first coordinate.
@@ -224,13 +225,14 @@ def fetch_overlapping_fields():
         threshold = data.get('threshold') or 95
         s2_index = data.get('s2_index')
         domain = data.get('domain') or ""
+        boundary_type = data.get('boundary_type') or ""
 
         # get the L13 indices
         # s2_index__L13_list is a list of tokens(hex encoded version of the cell id)
         s2_index__l13_list = S2Service.wkt_to_cell_tokens(field_wkt, resolution_level)
 
         # fetch geo ids for tokens and checking for the percentage match
-        matched_geo_ids = Utils.fetch_geo_ids_for_cell_tokens(s2_index__l13_list, domain)
+        matched_geo_ids = Utils.fetch_geo_ids_for_cell_tokens(s2_index__l13_list, domain, boundary_type)
         percentage_matched_geo_ids = Utils.check_percentage_match(matched_geo_ids, s2_index__l13_list, resolution_level,
                                                                   threshold)
         percentage_matched_fields = Utils.fetch_fields_for_geo_ids(percentage_matched_geo_ids, s2_index)

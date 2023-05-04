@@ -198,12 +198,13 @@ class Utils:
             raise e
 
     @staticmethod
-    def fetch_geo_ids_for_cell_tokens(s2_cell_tokens, domain):
+    def fetch_geo_ids_for_cell_tokens(s2_cell_tokens, domain, boundary_type=None):
         """
         fetch the geo ids which at least have one token from the tokens list given
         Optional domain filter
         :param s2_cell_tokens:
         :param domain:
+        :param boundary_type
         :return:
         """
         # fetching the distinct geo ids for the cell tokens
@@ -216,6 +217,8 @@ class Utils:
         else:
             geo_ids = db.session.query(GeoIds.geo_id).distinct().join(CellsGeosMiddle).join(S2CellTokens).filter(
                 S2CellTokens.cell_token.in_(set(s2_cell_tokens)))
+        if boundary_type:
+            geo_ids = geo_ids.filter(GeoIds.boundary_type == boundary_type)
         geo_ids = [r.geo_id for r in geo_ids]
         return geo_ids
 
