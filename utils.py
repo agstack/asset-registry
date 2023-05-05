@@ -364,10 +364,12 @@ class Utils:
             s2_indexes_to_remove = Utils.get_s2_indexes_to_remove(s2_index_to_fetch)
         for geo_id in geo_ids:
             geo_data_to_return = {}
-            geo_data = json.loads(GeoIds.query.filter(GeoIds.geo_id == geo_id).first().geo_data)
+            geo_data_object = GeoIds.query.filter(GeoIds.geo_id == geo_id).first()
+            geo_data = json.loads(geo_data_object.geo_data)
             if s2_index and s2_indexes_to_remove != -1:
                 geo_data_to_return = Utils.get_specific_s2_index_geo_data(json.dumps(geo_data), s2_indexes_to_remove)
             geo_data_to_return['Geo JSON'] = Utils.get_geo_json(geo_data['wkt'])
+            geo_data_to_return['boundary_type'] = geo_data_object.boundary_type
             fields_to_return.append({geo_id: geo_data_to_return})
         return fields_to_return
 
