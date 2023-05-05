@@ -11,6 +11,7 @@ class GeoIds(db.Model):
     geo_data = db.Column(db.JSON)
     s2_cell_tokens = db.relationship('S2CellTokens', secondary='cells_geo_ids', backref='geo_ids')
     country = db.Column(db.String(), nullable=True)
+    boundary_type = db.Column(db.String(), nullable=True, default='manual')
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 

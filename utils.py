@@ -198,12 +198,13 @@ class Utils:
             raise e
 
     @staticmethod
-    def fetch_geo_ids_for_cell_tokens(s2_cell_tokens, domain):
+    def fetch_geo_ids_for_cell_tokens(s2_cell_tokens, domain, boundary_type=None):
         """
         fetch the geo ids which at least have one token from the tokens list given
         Optional domain filter
         :param s2_cell_tokens:
         :param domain:
+        :param boundary_type
         :return:
         """
         # fetching the distinct geo ids for the cell tokens
@@ -216,6 +217,8 @@ class Utils:
         else:
             geo_ids = db.session.query(GeoIds.geo_id).distinct().join(CellsGeosMiddle).join(S2CellTokens).filter(
                 S2CellTokens.cell_token.in_(set(s2_cell_tokens)))
+        if boundary_type:
+            geo_ids = geo_ids.filter(GeoIds.boundary_type == boundary_type)
         geo_ids = [r.geo_id for r in geo_ids]
         return geo_ids
 
@@ -314,7 +317,7 @@ class Utils:
         return fields_to_return
 
     @staticmethod
-    def fetch_fields_for_a_point_two_way(s2_cell_token_13, s2_cell_token_20, domain, s2_index=None):
+    def fetch_fields_for_a_point_two_way(s2_cell_token_13, s2_cell_token_20, domain, s2_index=None, boundary_type=None):
         """
         Checks if token exists in L13, then further checks for L20
         Returns the fields if token exists at both the levels
@@ -337,11 +340,15 @@ class Utils:
         else:
             geo_ids = db.session.query(GeoIds.geo_id).distinct().join(CellsGeosMiddle).join(S2CellTokens).filter(
                 S2CellTokens.cell_token == s2_cell_token_13)
+        if boundary_type:
+            geo_ids = geo_ids.filter(GeoIds.boundary_type == boundary_type)
         geo_ids = [r.geo_id for r in geo_ids]
         fields_to_return = []
         for geo_id in geo_ids:
             geo_data_to_return = {}
-            geo_data = json.loads(GeoIds.query.filter(GeoIds.geo_id == geo_id).first().geo_data)
+            geo_data_obj = GeoIds.query.filter(GeoIds.geo_id == geo_id).first()
+            geo_data = json.loads(geo_data_obj.geo_data)
+            geo_data['boundary_type'] = geo_data_obj.boundary_type
             if s2_index and s2_indexes_to_remove != -1:
                 geo_data_to_return = Utils.get_specific_s2_index_geo_data(json.dumps(geo_data), s2_indexes_to_remove)
             if s2_cell_token_13 in geo_data['13'] and s2_cell_token_20 in geo_data['20']:
@@ -357,10 +364,12 @@ class Utils:
             s2_indexes_to_remove = Utils.get_s2_indexes_to_remove(s2_index_to_fetch)
         for geo_id in geo_ids:
             geo_data_to_return = {}
-            geo_data = json.loads(GeoIds.query.filter(GeoIds.geo_id == geo_id).first().geo_data)
+            geo_data_object = GeoIds.query.filter(GeoIds.geo_id == geo_id).first()
+            geo_data = json.loads(geo_data_object.geo_data)
             if s2_index and s2_indexes_to_remove != -1:
                 geo_data_to_return = Utils.get_specific_s2_index_geo_data(json.dumps(geo_data), s2_indexes_to_remove)
             geo_data_to_return['Geo JSON'] = Utils.get_geo_json(geo_data['wkt'])
+            geo_data_to_return['boundary_type'] = geo_data_object.boundary_type
             fields_to_return.append({geo_id: geo_data_to_return})
         return fields_to_return
 
