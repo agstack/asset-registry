@@ -317,7 +317,7 @@ class Utils:
         return fields_to_return
 
     @staticmethod
-    def fetch_fields_for_a_point_two_way(s2_cell_token_13, s2_cell_token_20, domain, s2_index=None):
+    def fetch_fields_for_a_point_two_way(s2_cell_token_13, s2_cell_token_20, domain, s2_index=None, boundary_type=None):
         """
         Checks if token exists in L13, then further checks for L20
         Returns the fields if token exists at both the levels
@@ -340,11 +340,15 @@ class Utils:
         else:
             geo_ids = db.session.query(GeoIds.geo_id).distinct().join(CellsGeosMiddle).join(S2CellTokens).filter(
                 S2CellTokens.cell_token == s2_cell_token_13)
+        if boundary_type:
+            geo_ids = geo_ids.filter(GeoIds.boundary_type == boundary_type)
         geo_ids = [r.geo_id for r in geo_ids]
         fields_to_return = []
         for geo_id in geo_ids:
             geo_data_to_return = {}
-            geo_data = json.loads(GeoIds.query.filter(GeoIds.geo_id == geo_id).first().geo_data)
+            geo_data_obj = GeoIds.query.filter(GeoIds.geo_id == geo_id).first()
+            geo_data = json.loads(geo_data_obj.geo_data)
+            geo_data['boundary_type'] = geo_data_obj.boundary_type
             if s2_index and s2_indexes_to_remove != -1:
                 geo_data_to_return = Utils.get_specific_s2_index_geo_data(json.dumps(geo_data), s2_indexes_to_remove)
             if s2_cell_token_13 in geo_data['13'] and s2_cell_token_20 in geo_data['20']:

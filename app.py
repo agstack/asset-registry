@@ -355,13 +355,14 @@ def fetch_fields_for_a_point():
         lat = data.get('latitude')
         long = data.get('longitude')
         domain = data.get('domain')
+        boundary_type = data.get('boundary_type')
         s2_index = data.get('s2_index')
         if not lat or not long:
             return make_response(jsonify({
                 "message": "Latitude and Longitude are required."
             }), 400)
         s2_cell_token_13, s2_cell_token_20 = S2Service.get_cell_token_for_lat_long(lat, long)
-        fetched_fields = Utils.fetch_fields_for_a_point_two_way(s2_cell_token_13, s2_cell_token_20, domain, s2_index)
+        fetched_fields = Utils.fetch_fields_for_a_point_two_way(s2_cell_token_13, s2_cell_token_20, domain, s2_index, boundary_type)
         return make_response(jsonify({
             "Fetched fields": fetched_fields
         }), 200)
