@@ -217,7 +217,7 @@ class Utils:
         else:
             geo_ids = db.session.query(GeoIds.geo_id).distinct().join(CellsGeosMiddle).join(S2CellTokens).filter(
                 S2CellTokens.cell_token.in_(set(s2_cell_tokens)))
-        if boundary_type:
+        if boundary_type and not isinstance(geo_ids, list):
             geo_ids = geo_ids.filter(GeoIds.boundary_type == boundary_type)
         geo_ids = [r.geo_id for r in geo_ids]
         return geo_ids
