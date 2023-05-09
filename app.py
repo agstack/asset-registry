@@ -119,9 +119,10 @@ def register_field_boundary():
 
         boundary_type = "manual"
         # check if request from automated system
-        automated_field = bool(int(request.headers.get('AUTOMATED-FIELD')))
-        if automated_field:
-            boundary_type = "automated"
+        if request.headers.get('AUTOMATED-FIELD') is not None:
+            automated_field = bool(int(request.headers.get('AUTOMATED-FIELD')))
+            if automated_field:
+                boundary_type = "automated"
         # set lat lng from geoJson first coordinate.
         lat = field_boundary_geo_json['geometry']['coordinates'][0][0][1]
         lng = field_boundary_geo_json['geometry']['coordinates'][0][0][0]
