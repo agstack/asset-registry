@@ -152,7 +152,16 @@ class Utils:
         return exists
 
     @staticmethod
-    def register_field_boundary(geo_id, indices, records_list_s2_cell_tokens_middle_table_dict, field_wkt, country):
+    def fetch_domain_from_client_secret():
+        try:
+            return jwt.decode(request.headers.get('CLIENT-SECRET'), app.config['SECRET_KEY'], algorithms="HS256")[
+                'sub']
+        except Exception as e:
+            raise e
+
+    @staticmethod
+    def register_field_boundary(geo_id, indices, records_list_s2_cell_tokens_middle_table_dict, field_wkt, country,
+                                boundary_type):
         """
         registering the geo id (field boundary) in the database
         :param geo_id:
@@ -160,15 +169,18 @@ class Utils:
         :param records_list_s2_cell_tokens_middle_table_dict:
         :param field_wkt:
         :param country:
+        :param boundary_type:
         :return:
         """
         try:
             geo_data = {'wkt': field_wkt}
             authority_token = None
             domain = Utils.get_domain_from_jwt()
+            if not domain:
+                domain = Utils.fetch_domain_from_client_secret()
             if domain:
                 authority_token = Utils.get_authority_token_for_domain(domain)
-            geo_id_record = GeoIds(geo_id, geo_data, authority_token, country)
+            geo_id_record = GeoIds(geo_id, geo_data, authority_token, country, boundary_type)
             # creating the json encoded geo_data for different resolution levels
             for res_level, s2_cell_tokens_records in records_list_s2_cell_tokens_middle_table_dict.items():
                 geo_data[res_level] = indices[res_level]
@@ -376,12 +388,15 @@ class Utils:
     @staticmethod
     def get_domain_from_jwt():
         """
-        Get domain of the logged in user
+        Get domain of the logged-in user
         :return:
         """
-        token = Utils.get_bearer_token()
-        domain = jwt.decode(token, app.config['SECRET_KEY'], algorithms="HS256")['domain']
-        return domain
+        try:
+            token = Utils.get_bearer_token()
+            domain = jwt.decode(token, app.config['SECRET_KEY'], algorithms="HS256")['domain']
+            return domain
+        except Exception as e:
+            return False
 
     @staticmethod
     def get_authority_token_for_domain(domain):
@@ -563,7 +578,8 @@ class Utils:
         """
         try:
             headers = {'API-KEY': api_key, 'CLIENT-SECRET': client_secret}
-            res = requests.get(app.config['USER_REGISTRY_BASE_URL'] + '/verify-api-secret-keys', headers=headers, timeout=2)
+            res = requests.get(app.config['USER_REGISTRY_BASE_URL'] + '/verify-api-secret-keys', headers=headers,
+                               timeout=2)
             return res.json()["message"]
         except Exception as e:
             raise e
