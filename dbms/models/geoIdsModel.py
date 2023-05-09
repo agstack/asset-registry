@@ -15,11 +15,12 @@ class GeoIds(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
-    def __init__(self, geo_id, geo_data, authority_token, country):
+    def __init__(self, geo_id, geo_data, authority_token, country, boundary_type):
         self.geo_id = geo_id
         self.geo_data = geo_data
         self.authority_token = authority_token
         self.country = country
+        self.boundary_type = boundary_type
 
     def __repr__(self):
         return '<id {}>'.format(self.id)

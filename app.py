@@ -114,9 +114,14 @@ def register_field_boundary():
         data = json.loads(request.data.decode('utf-8'))
         field_wkt = data.get('wkt')
         threshold = data.get('threshold') or 95
-        boundary_type = data.get('boundary_type')
         resolution_level = 20
         field_boundary_geo_json = Utils.get_geo_json(field_wkt)
+
+        boundary_type = "manual"
+        # check if request from automated system
+        automated_field = bool(int(request.headers.get('AUTOMATED-FIELD')))
+        if automated_field:
+            boundary_type = "automated"
         # set lat lng from geoJson first coordinate.
         lat = field_boundary_geo_json['geometry']['coordinates'][0][0][1]
         lng = field_boundary_geo_json['geometry']['coordinates'][0][0][0]
@@ -155,7 +160,7 @@ def register_field_boundary():
         if not geo_id_exists_wkt:
             geo_data_to_return = None
             geo_data = Utils.register_field_boundary(geo_id, indices, records_list_s2_cell_tokens_middle_table_dict,
-                                                     field_wkt, country)
+                                                     field_wkt, country, boundary_type)
             if s2_index and s2_indexes_to_remove != -1:
                 geo_data_to_return = Utils.get_specific_s2_index_geo_data(geo_data, s2_indexes_to_remove)
             return jsonify({
@@ -185,7 +190,7 @@ def register_field_boundary():
                 geo_data_to_return = None
                 geo_data = Utils.register_field_boundary(geo_id_l20, indices,
                                                          records_list_s2_cell_tokens_middle_table_dict,
-                                                         field_wkt, country)
+                                                         field_wkt, country, boundary_type)
                 if s2_index and s2_indexes_to_remove != -1:
                     geo_data_to_return = Utils.get_specific_s2_index_geo_data(geo_data, s2_indexes_to_remove)
                 return jsonify({
@@ -362,7 +367,8 @@ def fetch_fields_for_a_point():
                 "message": "Latitude and Longitude are required."
             }), 400)
         s2_cell_token_13, s2_cell_token_20 = S2Service.get_cell_token_for_lat_long(lat, long)
-        fetched_fields = Utils.fetch_fields_for_a_point_two_way(s2_cell_token_13, s2_cell_token_20, domain, s2_index, boundary_type)
+        fetched_fields = Utils.fetch_fields_for_a_point_two_way(s2_cell_token_13, s2_cell_token_20, domain, s2_index,
+                                                                boundary_type)
         return make_response(jsonify({
             "Fetched fields": fetched_fields
         }), 200)
