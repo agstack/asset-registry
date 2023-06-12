@@ -196,7 +196,7 @@ def register_field_boundary():
                     geo_data_to_return = Utils.get_specific_s2_index_geo_data(geo_data, s2_indexes_to_remove)
                 return jsonify({
                     "message": "Field Boundary registered successfully.",
-                    "Geo Id": geo_id,
+                    "Geo Id": geo_id_l20,
                     "S2 Cell Tokens": geo_data_to_return,
                     "Geo JSON": field_boundary_geo_json
                 })
