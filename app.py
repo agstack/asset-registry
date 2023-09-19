@@ -3,6 +3,7 @@ import requests
 from flask import jsonify, request, make_response
 from flask_migrate import Migrate
 from dbms import app, db
+from geoid_list.geoid_list import list_bp
 from s2_service import S2Service
 from utils import Utils
 from dotenv import load_dotenv
@@ -17,6 +18,8 @@ localStorage = localStoragePy('asset-registry', 'text')
 from dbms.models import geoIdsModel, s2CellTokensModel, cellsGeosMiddleModel
 
 migrate = Migrate(app, db)
+app.register_blueprint(list_bp)    # url_prefix='/geoid-lists'
+
 
 
 @app.route('/', methods=["GET"])
