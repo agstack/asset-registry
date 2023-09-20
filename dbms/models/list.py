@@ -13,17 +13,15 @@ class Lists(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
-    def __init__(self):
-        self.name = str(self.id)
-
     def __repr__(self):
         return '<id {}>'.format(self.id)
 
     def as_dict(self):
         return {
+            "id": self.id,
             "name": self.name,
-            "created_at": self.created_at,
-            "updated_at": self.updated_at,
+            "created_at": str(self.created_at),
+            "updated_at": str(self.updated_at),
             "geo_ids": [geoid.geo_id for geoid in self.geo_ids],
         }
 

@@ -1,8 +1,8 @@
 """lists of geoids
 
-Revision ID: 7b414353da15
+Revision ID: cf6ed137b0e4
 Revises: 2742e8bafcc6
-Create Date: 2023-09-19 17:04:49.923434
+Create Date: 2023-09-20 08:31:04.271804
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '7b414353da15'
+revision = 'cf6ed137b0e4'
 down_revision = '2742e8bafcc6'
 branch_labels = None
 depends_on = None
