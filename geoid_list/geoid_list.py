@@ -2,7 +2,7 @@ import datetime
 
 from flask import jsonify
 
-from app import db
+from dbms import db
 from flask_restful import reqparse
 from flask import Blueprint
 from flask_restful import Api, Resource
