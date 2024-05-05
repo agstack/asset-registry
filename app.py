@@ -18,8 +18,7 @@ localStorage = localStoragePy('asset-registry', 'text')
 from dbms.models import geoIdsModel, s2CellTokensModel, cellsGeosMiddleModel
 
 migrate = Migrate(app, db)
-app.register_blueprint(list_bp)    # url_prefix='/geoid-lists'
-
+app.register_blueprint(list_bp)  # url_prefix='/geoid-lists'
 
 
 @app.route('/', methods=["GET"])
@@ -293,43 +292,44 @@ def register_point():
         }), 400
 
 
-@app.route('/fetch-overlapping-fields', methods=['POST'])
-@Utils.token_required
-def fetch_overlapping_fields():
-    """
-    Fetch the overlapping fields for a certain threshold
-    Overlap is being checked for L13 Resolution Level
-    Optional domain parameter for filtering fields based on associated domain
-    Returning the fields Geo Ids
-    """
-    try:
-        data = json.loads(request.data.decode('utf-8'))
-        field_wkt = data.get('wkt')
-        resolution_level = data.get('resolution_level') or 13
-        threshold = data.get('threshold') or 95
-        s2_index = data.get('s2_index')
-        domain = data.get('domain') or ""
-        boundary_type = data.get('boundary_type') or ""
-
-        # get the L13 indices
-        # s2_index__L13_list is a list of tokens(hex encoded version of the cell id)
-        s2_index__l13_list = S2Service.wkt_to_cell_tokens(field_wkt, resolution_level)
-
-        # fetch geo ids for tokens and checking for the percentage match
-        matched_geo_ids = Utils.fetch_geo_ids_for_cell_tokens(s2_index__l13_list, domain, boundary_type)
-        percentage_matched_geo_ids = Utils.check_percentage_match(matched_geo_ids, s2_index__l13_list, resolution_level,
-                                                                  threshold)
-        percentage_matched_fields = Utils.fetch_fields_for_geo_ids(percentage_matched_geo_ids, s2_index)
-
-        return make_response(jsonify({
-            "message": "The field Geo Ids with percentage match of the given threshold.",
-            "Matched Fields": percentage_matched_fields
-        }), 200)
-    except Exception as e:
-        return jsonify({
-            'message': 'Fetch Overlapping Fields Error',
-            'error': f'{e}'
-        }), 400
+# Deprecated!!!
+# @app.route('/fetch-overlapping-fields', methods=['POST'])
+# @Utils.token_required
+# def fetch_overlapping_fields():
+#     """
+#     Fetch the overlapping fields for a certain threshold
+#     Overlap is being checked for L13 Resolution Level
+#     Optional domain parameter for filtering fields based on associated domain
+#     Returning the fields Geo Ids
+#     """
+#     try:
+#         data = json.loads(request.data.decode('utf-8'))
+#         field_wkt = data.get('wkt')
+#         resolution_level = data.get('resolution_level') or 13
+#         threshold = data.get('threshold') or 95
+#         s2_index = data.get('s2_index')
+#         domain = data.get('domain') or ""
+#         boundary_type = data.get('boundary_type') or ""
+#
+#         # get the L13 indices
+#         # s2_index__L13_list is a list of tokens(hex encoded version of the cell id)
+#         s2_index__l13_list = S2Service.wkt_to_cell_tokens(field_wkt, resolution_level)
+#
+#         # fetch geo ids for tokens and checking for the percentage match
+#         matched_geo_ids = Utils.fetch_geo_ids_for_cell_tokens(s2_index__l13_list, domain, boundary_type)
+#         percentage_matched_geo_ids = Utils.check_percentage_match(matched_geo_ids, s2_index__l13_list, resolution_level,
+#                                                                   threshold)
+#         percentage_matched_fields = Utils.fetch_fields_for_geo_ids(percentage_matched_geo_ids, s2_index)
+#
+#         return make_response(jsonify({
+#             "message": "The field Geo Ids with percentage match of the given threshold.",
+#             "Matched Fields": percentage_matched_fields
+#         }), 200)
+#     except Exception as e:
+#         return jsonify({
+#             'message': 'Fetch Overlapping Fields Error',
+#             'error': f'{e}'
+#         }), 400
 
 
 @app.route('/fetch-field/<geo_id>', methods=['GET'])
@@ -458,34 +458,35 @@ def fetch_fields_for_a_point():
         }), 400
 
 
-@app.route('/fetch-bounding-box-fields', methods=['POST'])
-@Utils.token_required
-def fetch_bounding_box_fields():
-    """
-    Fetch the fields intersecting the Bounding Box
-    4 vertices are provided
-    :return:
-    """
-    try:
-        data = json.loads(request.data.decode('utf-8'))
-        latitudes = list(map(float, data.get('latitudes').split(' ')))
-        longitudes = list(map(float, data.get('longitudes').split(' ')))
-        s2_index = data.get('s2_index')
-        if not latitudes or not longitudes:
-            return make_response(jsonify({
-                "message": "Latitudes and Longitudes are required."
-            }), 400)
-        s2_cell_tokens_13 = S2Service.get_cell_tokens_for_bounding_box(latitudes, longitudes)
-        s2_cell_tokens_20 = S2Service.get_cell_tokens_for_bounding_box(latitudes, longitudes, 20)
-        fields = Utils.fetch_fields_for_cell_tokens(s2_cell_tokens_13, s2_cell_tokens_20, s2_index)
-        return make_response(jsonify({
-            "message": fields
-        }), 200)
-    except Exception as e:
-        return jsonify({
-            'message': 'Fetch Bounding Box Fields Error',
-            'error': f'{e}'
-        }), 400
+# Deprecated!!!
+# @app.route('/fetch-bounding-box-fields', methods=['POST'])
+# @Utils.token_required
+# def fetch_bounding_box_fields():
+#     """
+#     Fetch the fields intersecting the Bounding Box
+#     4 vertices are provided
+#     :return:
+#     """
+#     try:
+#         data = json.loads(request.data.decode('utf-8'))
+#         latitudes = list(map(float, data.get('latitudes').split(' ')))
+#         longitudes = list(map(float, data.get('longitudes').split(' ')))
+#         s2_index = data.get('s2_index')
+#         if not latitudes or not longitudes:
+#             return make_response(jsonify({
+#                 "message": "Latitudes and Longitudes are required."
+#             }), 400)
+#         s2_cell_tokens_13 = S2Service.get_cell_tokens_for_bounding_box(latitudes, longitudes)
+#         s2_cell_tokens_20 = S2Service.get_cell_tokens_for_bounding_box(latitudes, longitudes, 20)
+#         fields = Utils.fetch_fields_for_cell_tokens(s2_cell_tokens_13, s2_cell_tokens_20, s2_index)
+#         return make_response(jsonify({
+#             "message": fields
+#         }), 200)
+#     except Exception as e:
+#         return jsonify({
+#             'message': 'Fetch Bounding Box Fields Error',
+#             'error': f'{e}'
+#         }), 400
 
 
 @app.route("/domains", methods=['GET'])
