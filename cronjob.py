@@ -1,7 +1,4 @@
 import os
-import schedule
-import time
-import random
 import git
 from datetime import datetime
 from dotenv import load_dotenv
@@ -10,11 +7,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # GitHub repository URL and user config from environment
-# Load environment variables at the top with other env vars
 GITHUB_REPO_URL = os.getenv('GITHUB_REPO_URL')
 GIT_USER_NAME = os.getenv('GIT_USER_NAME')
 GIT_USER_EMAIL = os.getenv('GIT_USER_EMAIL')
-# defaults to 'origin' if not set
 GIT_REMOTE_NAME = os.getenv('GIT_REMOTE_NAME', 'origin')
 
 if not GITHUB_REPO_URL:
@@ -28,7 +23,6 @@ REPO_PATH = os.path.dirname(os.path.abspath(__file__))
 LOG_FILE_PATH = os.path.join(REPO_PATH, "asset_registry_daily_log.txt")
 
 BRANCH_NAME = "master"
-
 
 def append_log_and_commit():
     """Appends daily asset registry log entry and commits changes to GitHub."""
@@ -61,33 +55,13 @@ def append_log_and_commit():
         # More verbose push with error handling
         try:
             origin.push(BRANCH_NAME)
-            print(
-                f"Successfully committed and pushed log: {log_entry.strip()}")
+            print(f"Successfully committed and pushed log: {log_entry.strip()}")
             print(f"Commit hash: {commit.hexsha}")
         except git.GitCommandError as git_error:
             print(f"Failed to push to GitHub: {git_error}")
             print("Check your GitHub token and repository permissions")
-        origin.push(refspec=f"{BRANCH_NAME}:{BRANCH_NAME}")
-        print(f"Successfully committed and pushed log: {log_entry.strip()}")
     except Exception as e:
         print(f"Error during Git operations: {str(e)}")
 
-
-# Schedule the job at a random time between 1 AM and 5 AM
-random_hour = random.randint(1, 5)
-random_minute = random.randint(0, 59)
-schedule.every().day.at(f"{random_hour:02}:{random_minute:02}").do(
-    append_log_and_commit)
-
-
-def run_scheduler():
-    """Continuously runs the scheduler in the background."""
-    print(
-        f"Scheduler started. Next run scheduled for {random_hour:02}:{random_minute:02}")
-    while True:
-        schedule.run_pending()
-        time.sleep(60)
-
-
 if __name__ == "__main__":
-    run_scheduler()
+    append_log_and_commit()
