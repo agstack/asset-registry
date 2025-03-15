@@ -583,3 +583,17 @@ class Utils:
             return res.json()["message"]
         except Exception as e:
             raise e
+
+    @staticmethod
+    def geojson_to_wkt(geojson_feature):
+        """
+        Convert GeoJSON feature to WKT format
+        :param geojson_feature: GeoJSON feature dictionary
+        :return: WKT string
+        """
+        try:
+            from shapely.geometry import shape
+            geometry = shape(geojson_feature['geometry'])
+            return geometry.wkt
+        except Exception as e:
+            raise ValueError(f"Failed to convert GeoJSON to WKT: {str(e)}")
