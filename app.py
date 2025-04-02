@@ -244,21 +244,48 @@ def register_field_boundaries_geojson():
                 # Convert GeoJSON to WKT
                 field_wkt = Utils.geojson_to_wkt(feature)
                 field_boundary_geo_json = feature
+                geometry_type = feature['geometry']['type']
 
-                # set lat lng from geoJson first coordinate
-                lat = feature['geometry']['coordinates'][0][0][1]
-                lng = feature['geometry']['coordinates'][0][0][0]
+                # set lat lng based on geometry type
+                if geometry_type == 'Point':
+                    lat = feature['geometry']['coordinates'][1]
+                    lng = feature['geometry']['coordinates'][0]
+                    indices = {
+                        8: S2Service.wkt_to_cell_tokens(field_wkt, 8, point=True),
+                        13: S2Service.wkt_to_cell_tokens(field_wkt, 13, point=True),
+                        15: S2Service.wkt_to_cell_tokens(field_wkt, 15, point=True),
+                        18: S2Service.wkt_to_cell_tokens(field_wkt, 18, point=True),
+                        19: S2Service.wkt_to_cell_tokens(field_wkt, 19, point=True),
+                        20: S2Service.wkt_to_cell_tokens(field_wkt, 20, point=True),
+                        30: S2Service.wkt_to_cell_tokens(field_wkt, 30, point=True)
+                    }
+                else:  # Polygon
+                    lat = feature['geometry']['coordinates'][0][0][1]
+                    lng = feature['geometry']['coordinates'][0][0][0]
+                    indices = {
+                        8: S2Service.wkt_to_cell_tokens(field_wkt, 8),
+                        13: S2Service.wkt_to_cell_tokens(field_wkt, 13),
+                        15: S2Service.wkt_to_cell_tokens(field_wkt, 15),
+                        18: S2Service.wkt_to_cell_tokens(field_wkt, 18),
+                        19: S2Service.wkt_to_cell_tokens(field_wkt, 19),
+                        20: S2Service.wkt_to_cell_tokens(field_wkt, 20)
+                    }
+
                 p = Point([lng, lat])
                 country = Utils.get_country_from_point(p)
-                are_in_acres = Utils.get_are_in_acres(field_wkt)
-                if are_in_acres > 1000:
-                    results.append({
-                        "status": "skipped",
-                        "message": f"Cannot register a field with Area greater than 1000 acres",
-                        "field_area_acres": are_in_acres,
-                        "geo_json": field_boundary_geo_json
-                    })
-                    continue
+                print("Country:", country)
+
+                # Skip area check for points
+                if geometry_type != 'Point':
+                    are_in_acres = Utils.get_are_in_acres(field_wkt)
+                    if are_in_acres > 1000:
+                        results.append({
+                            "status": "skipped",
+                            "message": f"Cannot register a field with Area greater than 1000 acres",
+                            "field_area_acres": are_in_acres,
+                            "geo_json": field_boundary_geo_json
+                        })
+                        continue
 
                 s2_index = feature.get('properties', {}).get('s2_index')
                 s2_indexes_to_remove = None
@@ -266,12 +293,12 @@ def register_field_boundaries_geojson():
                     s2_index_to_fetch = [int(i) for i in s2_index.split(',')]
                     s2_indexes_to_remove = Utils.get_s2_indexes_to_remove(s2_index_to_fetch)
 
-                indices = {8: S2Service.wkt_to_cell_tokens(field_wkt, 8),
-                          13: S2Service.wkt_to_cell_tokens(field_wkt, 13),
-                          15: S2Service.wkt_to_cell_tokens(field_wkt, 15),
-                          18: S2Service.wkt_to_cell_tokens(field_wkt, 18),
-                          19: S2Service.wkt_to_cell_tokens(field_wkt, 19),
-                          20: S2Service.wkt_to_cell_tokens(field_wkt, 20)}
+                # indices = {8: S2Service.wkt_to_cell_tokens(field_wkt, 8),
+                #           13: S2Service.wkt_to_cell_tokens(field_wkt, 13),
+                #           15: S2Service.wkt_to_cell_tokens(field_wkt, 15),
+                #           18: S2Service.wkt_to_cell_tokens(field_wkt, 18),
+                #           19: S2Service.wkt_to_cell_tokens(field_wkt, 19),
+                #           20: S2Service.wkt_to_cell_tokens(field_wkt, 20)}
 
                 records_list_s2_cell_tokens_middle_table_dict = Utils.records_s2_cell_tokens(indices)
                 geo_id = Utils.generate_geo_id(indices[13])
