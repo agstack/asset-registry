@@ -1,0 +1,56 @@
+services:
+
+  db:
+    image: postgres:15
+    container_name: ar_postgres_container
+    restart: always
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: test213
+      POSTGRES_DB: asset_registry_db
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d asset_registry_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    container_name: asset_registry
+    env_file:
+      - .env
+    command: >
+      sh -c "flask db upgrade && python3 app.py"
+    volumes:
+      - asset_registry_socket:/app/
+      - logs:/var/www/logs
+    expose:
+      - "4000"
+    ports:
+      - "5001:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:latest
+    container_name: ar_nginx_proxy
+    restart: always
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+      - asset_registry_socket:/home/agro_dev/webapps/
+      - logs:/var/www/logs
+
+volumes:
+  postgres_data:
+  asset_registry_socket:
+  logs:
