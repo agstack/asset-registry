@@ -102,6 +102,28 @@ class Utils:
         return decorated
 
     @staticmethod
+    def token_required_(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            token = Utils.get_bearer_token()
+            if not token:
+                return jsonify({'message': 'Missing token'}), 401
+
+            try:
+                decoded_token = jwt.decode(token, app.config['SECRET_KEY'], algorithms="HS256")
+                current_user_id = decoded_token.get("user_id") or decoded_token.get("sub")
+
+                if not current_user_id:
+                    return jsonify({'message': 'Invalid token, user_id missing'}), 401
+            except Exception as e:
+                return jsonify({'message': f'Invalid token: {str(e)}'}), 401
+
+            return f(current_user_id, *args, **kwargs)
+
+        return decorated
+
+
+    @staticmethod
     def records_s2_cell_tokens(s2_cell_tokens_dict: dict):
         """
         creates database records for the s2 cell tokens

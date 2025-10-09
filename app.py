@@ -107,8 +107,8 @@ def login():
 
 
 @app.route('/register-field-boundary', methods=['POST'])
-@Utils.token_required
-def register_field_boundary():
+@Utils.token_required_
+def register_field_boundary(current_user_id):
     """
     Registering a field boundary against a Geo Id
     """
@@ -162,7 +162,7 @@ def register_field_boundary():
         # if geo id not registered, register it in the database
         if not geo_id_exists_wkt:
             geo_data_to_return = None
-            geo_data = Utils.register_field_boundary(geo_id, indices, records_list_s2_cell_tokens_middle_table_dict,
+            geo_data = Utils.register_field_boundary(current_user_id , geo_id, indices, records_list_s2_cell_tokens_middle_table_dict,
                                                      field_wkt, country, boundary_type)
             if s2_index and s2_indexes_to_remove != -1:
                 geo_data_to_return = Utils.get_specific_s2_index_geo_data(geo_data, s2_indexes_to_remove)
@@ -191,7 +191,7 @@ def register_field_boundary():
             geo_id_exists_wkt_l20 = Utils.lookup_geo_ids(geo_id_l20)
             if not geo_id_exists_wkt_l20:
                 geo_data_to_return = None
-                geo_data = Utils.register_field_boundary(geo_id_l20, indices,
+                geo_data = Utils.register_field_boundary(current_user_id , geo_id_l20, indices,
                                                          records_list_s2_cell_tokens_middle_table_dict,
                                                          field_wkt, country, boundary_type)
                 if s2_index and s2_indexes_to_remove != -1:
@@ -217,8 +217,8 @@ def register_field_boundary():
         }), 400
 
 @app.route('/register-field-boundaries-geojson', methods=['POST'])
-@Utils.token_required
-def register_field_boundaries_geojson():
+@Utils.token_required_
+def register_field_boundaries_geojson(current_user_id):
     """
     Bulk registration of multiple field boundaries from GeoJSON FeatureCollection
     """
@@ -273,7 +273,6 @@ def register_field_boundaries_geojson():
 
                 p = Point([lng, lat])
                 country = Utils.get_country_from_point(p)
-                print("Country:", country)
 
                 # Skip area check for points
                 if geometry_type != 'Point':
@@ -306,9 +305,8 @@ def register_field_boundaries_geojson():
                 geo_id_exists_wkt = Utils.lookup_geo_ids(geo_id)
                 if not geo_id_exists_wkt:
                     geo_data_to_return = None
-                    geo_data = Utils.register_field_boundary(geo_id, indices, 
-                                                           records_list_s2_cell_tokens_middle_table_dict,
-                                                           field_wkt, country, boundary_type)
+                    geo_data = Utils.register_field_boundary(current_user_id , geo_id, indices, records_list_s2_cell_tokens_middle_table_dict,
+                                                     field_wkt, country, boundary_type)
                     if s2_index and s2_indexes_to_remove != -1:
                         geo_data_to_return = Utils.get_specific_s2_index_geo_data(geo_data, s2_indexes_to_remove)
                     
@@ -338,7 +336,7 @@ def register_field_boundaries_geojson():
                 geo_id_exists_wkt_l20 = Utils.lookup_geo_ids(geo_id_l20)
                 if not geo_id_exists_wkt_l20:
                     geo_data_to_return = None
-                    geo_data = Utils.register_field_boundary(geo_id_l20, indices,
+                    geo_data = Utils.register_field_boundary(current_user_id,geo_id_l20, indices,
                                                            records_list_s2_cell_tokens_middle_table_dict,
                                                            field_wkt, country, boundary_type)
                     if s2_index and s2_indexes_to_remove != -1:
@@ -377,6 +375,7 @@ def register_field_boundaries_geojson():
             'message': 'Bulk Register Field Boundaries Error',
             'error': str(e)
         }), 400
+
 
 @app.route('/register-point', methods=['POST'])
 @Utils.token_required
