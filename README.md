@@ -50,8 +50,8 @@ Registers the asset using its **WKT** representation and returns only the GeoID.
     * `X-FROM-ASSET-REGISTRY: True`
     * `Content-Type: application/json`
 * **Body (JSON):**
-    * `wkt`: **W**ell-**K**nown **T**ext representation of the geometry.
-    * `threshold`: Matching sensitivity percentage (e.g., 95).
+    * `wkt`: **W**ell-**K**nown **T**ext representation of the geometry.**Required**
+    * `threshold`: Matching sensitivity percentage (e.g., 95).**Optional**
 
     ```json
     {
@@ -69,13 +69,13 @@ Registers the asset using its **WKT** representation and returns only the GeoID.
     }
     ```
 
-### 3. Register Field Boundary (with S2 Indices)
+### 3. Register Field Boundary with S2 Indices(Optional)
 
 Registers the asset and also returns the **S2 Cell Tokens** that cover the geometry at specified levels.
 
 * **Body (JSON) - Additional Fields:**
-    * `return_s2_indices`: Set to `true`.
-    * `s2_index`: A comma-separated string of desired S2 levels (e.g., "8,13").
+    * `return_s2_indices`: Set to `true`.**Required**
+    * `s2_index`: A comma-separated string of desired S2 levels (e.g., "8,13").**Optional**
 
     ```json
     {
@@ -159,6 +159,6 @@ If you see this response, proceed to **Step 5** immediately.
 * **Response:**
     ```json
     {
-      "message": "Invalid token: Signature has expired"
+      "message": "Invalid token: Short live token has expired"
     }
     ```
