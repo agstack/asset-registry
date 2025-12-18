@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>RegionList Map Viewer</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="./asset_reg_logo.ico">
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+    }
+
+    #map {
+      height: 90vh;
+      width: 100%;
+    }
+
+    .error {
+      color: red;
+      text-align: center;
+      margin: 10px 0;
+    }
+
+    .header-container {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      background-color: #f8f9fa;
+    }
+
+    #logo {
+      width: 150px;
+      height: auto;
+      margin-right: 20px;
+    }
+
+    .map-heading {
+      font-size: 1.05rem;
+      font-weight: 500;
+      margin: 0;
+    }
+
+    #footer-text {
+      position: absolute;
+      bottom: 10px;
+      width: 100%;
+      text-align: center;
+      font-size: 15px;
+      color: #555;
+      z-index: 1000;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header with Logo and Title
+  <div class="header-container">
+    <img id="logo" src="agstack-color.png" alt="Logo" />
+    <h2 class="map-heading">Asset Registry RegionList Map for regionListID: <span id="regionlist_id">Loading...</span></h2>
+  </div> -->
+
+  <!-- Header with Logo and Title -->
+  <div class="header-container">
+    <img id="logo" src="./agstack-color.png" alt="Logo" />
+    <h2 class="map-heading">
+      Asset Registry Enabled Regional List Map for regionListID: 
+      <span id="regionlist_id">Loading...</span>
+    </h2>
+  </div>
+
+  <!-- Error & Map Container -->
+  <div id="error" class="error" style="display: none;"></div>
+  <div id="map"></div>
+
+  <!-- Footer -->
+  <div id="footer-text">Powered by Asset Registry</div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const regionlist_id = urlParams.get('regionlist_id');
+    document.getElementById('regionlist_id').textContent = regionlist_id || 'N/A';
+
+    var map = L.map('map');
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© OpenStreetMap contributors, © CartoDB',
+        subdomains: 'abcd',
+        maxZoom: 19
+    }).addTo(map);
+
+    function showError(message) {
+        document.getElementById('error').textContent = message;
+        document.getElementById('error').style.display = 'block';
+        map.setView([0, 0], 2);
+        L.popup()
+            .setLatLng([0, 0])
+            .setContent(message)
+            .openOn(map);
+    }
+
+    const apiBaseUrl = 'http://127.0.0.1:5000/map';
+
+    const apiUrl = `${apiBaseUrl}?regionlist_id=${encodeURIComponent(regionlist_id)}`;
+
+    if (!regionlist_id) {
+        showError("Missing regionlist_id parameter");
+    } else {
+        fetch(apiUrl)
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw new Error(err.error || 'Unknown error'); });
+                }
+                return response.json();
+            })
+            .then(geojsons => {
+                if (geojsons.length === 0) {
+                    showError("No valid polygons found");
+                    return;
+                }
+
+                var bounds = [];
+                geojsons.forEach(function(geo) {
+                    var layer = L.geoJSON(geo, {
+                        style: { color: '#ff7800', weight: 2, opacity: 0.65 }
+                    }).addTo(map);
+                    bounds.push(layer.getBounds());
+                });
+
+                if (bounds.length > 0) {
+                    var groupBounds = bounds[0];
+                    bounds.forEach(b => groupBounds.extend(b));
+                    map.fitBounds(groupBounds, { padding: [50, 50] });
+                } else {
+                    showError("No valid polygons to display");
+                }
+            })
+            .catch(error => {
+                showError(error.message || "Failed to load data");
+            });
+    }
+  </script>
+</body>
+</html>

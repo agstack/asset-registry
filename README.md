@@ -162,3 +162,117 @@ If you see this response, proceed to **Step 5** immediately.
       "message": "Invalid token: Short live token has expired"
     }
     ```
+
+
+## 🗺️ Region List & QR Mapping Service (Test Links)
+This service provides a way to group multiple geo-spatial regions into a single, deterministic RegionListID. It includes tools to generate QR codes for easy sharing and an endpoint to retrieve GeoJSON data for map visualization.
+
+### Region List Management
+These endpoints allow you to create and manage collections of region IDs.
+
+### 1. Create RegionListID
+Generates a deterministic 64-character hex ID (formatted in 8-character chunks) for a unique list of existing region IDs.
+
+* **Endpoint:** `POST /create_regionlistID`
+
+* **Content-Type:** `application/json`
+
+* **Body (JSON):**
+
+    * `region_ids:` An array of region ID strings. **Required**
+    ```json
+    {
+      "region_ids": [
+        "3f6855e35a8dcebe-e5aabcc95f148e80-c52a4540961c23bc-1b7158ea18949a5f",
+        "a23a8c2e22667d29-3e6656b66f657657-5081805792e98208-3349896b72ef09ce"
+      ]
+    }
+    ```
+
+* **Example Response:**
+
+    ```json
+    {
+      "message": "RegionListID created successfully",
+      "regionListID": "cca1099a-1a2b3bc0-a0f56527-e80253fb-484ad822-5d12698e-170cf1a3-8149c949",
+      "stored_region_ids": ["..."],
+      "unregistered_region_ids": []
+    }
+    ```
+---
+
+### 2. Get Region Boundaries
+Retrieves the raw WKT boundaries for all regions associated with a specific regionlist_id.
+
+* **Endpoint:** `GET /get_region_boundaries/`
+
+
+* **Content-Type:** `application/json`
+
+* **Body (JSON):**
+
+    * `regionlist_id:` The unique Regionlist ID. **Required**
+    ```json
+    {
+      "regionlist_id": "3f6855e35a8dcebe-e5aabcc95f148e80-c52a4540961c23bc-1b7158ea18949a5f"
+    }
+    ```
+
+* **Example Response:**
+
+    ```json
+    {
+      "boundaries": [{"region_boundary": "POLYGON ((-88.5775 15.3148, -88.5741 15.3164, -88.5665 15.3193, -88.5597 15.3219, -88.5598 15.3193, -88.56 15.317,-88.605 15.2888, -88.6032 15.2936, -88.6029 15.2942, -88.6012 15.2973, -88.5993 15.298, -88.5842 15.3101, -88.5799 15.3134, -88.5782 15.3144, -88.5775 15.3148))", "region_id": "8df6d45f5055d10c-11049aadd1052756-826aef3498972eba-0b75e75729858170"}], "regionListID": "2d627058-c3d23a34-ee5fcc00-0c3215de-ecd68fe0-86a61a45-8cbe67db-535d5d2d"
+    }
+    ```
+---
+### Visualization & Sharing
+Use these endpoints to generate scannable QR codes or fetch geometry data for web maps.
+
+### 3. Generate QR Code
+Returns a PNG image of a QR code that points to the map visualization page.
+
+* **Endpoint:** `GET /qrcode`
+
+* **Params:**
+
+    * `regionlist_id:` The ID of the region list. **Required**
+
+    * `format:` Must be qr. **Required**
+
+* **Example Link:** `/qrcode?regionlist_id=cca1099a-1a2b3bc0-a0f56527-e80253fb-484ad822-5d12698e-170cf1a3-8149c949&format=qr`
+
+---
+### 4. Fetch Map Geometries (GeoJSON)
+Returns a collection of GeoJSON geometries for a given regionlist_id. This is typically called by a frontend map (like Leaflet or Mapbox).
+
+* **Endpoint:** `GET /map`
+
+* **Content-Type:** `application/json`
+
+* **Body (JSON):**
+
+    * `regionlist_id:` The ID of the region list.**Required**
+    ```json
+    {
+      "regionlist_id": "3f6855e35a8dcebe-e5aabcc95f148e80-c52a4540961c23bc-1b7158ea18949a5f"
+    }
+    ```
+
+* **Example Response:**
+
+    ```json
+        [
+          {
+            "type": "Polygon",
+            "coordinates": [[[76.88, 30.31], [76.89, 30.31], ...]]
+          }
+        ]
+    ```
+---
+
+### 5. Map View (Frontend)
+The visualization page can be accessed via: 
+`/map.html?regionlist_id=cca1099a-1a2b3bc0-a0f56527-e80253fb-484ad822-5d12698e-170cf1a3-8149c949`
+
+You can edit or add a custom HTML template to show the polygon on the map.

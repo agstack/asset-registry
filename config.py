@@ -12,7 +12,8 @@ class Config(object):
     SECRET_KEY = os.getenv('SECRET_KEY')
     SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
     USER_REGISTRY_BASE_URL = os.getenv('USER_REGISTRY_BASE_URL')
-
+    DATABASE_URL_FOR_REGION = os.getenv('DATABASE_URL_FOR_REGION')
+    MAP_HTML_BASE_URL = os.getenv('MAP_HTML_BASE_URL')
 
 class ProductionConfig(Config):
     DEBUG = False
