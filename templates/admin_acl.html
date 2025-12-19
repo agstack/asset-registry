@@ -1,0 +1,328 @@
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Access Control Manager</title>
+<style>
+/* Base & Reset */
+* { box-sizing: border-box; margin:0; padding:0;}
+body { font-family:'Segoe UI',sans-serif; background:#f5f7fa; color:#2c3e50; min-height:100vh; display:flex; justify-content:center; align-items:flex-start; padding:20px; }
+
+/* Card container */
+.card { background:#fff; padding:30px 25px; border-radius:12px; box-shadow:0 6px 20px rgba(0,0,0,0.08); width:100%; max-width:900px; margin-top:40px; position:relative; }
+
+/* Header row */
+.headerRow {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:20px;
+}
+
+/* Headings */
+h2,h3{color:#34495e;}
+
+/* Labels & Inputs */
+label{display:block;margin-top:15px;font-weight:600;color:#555;}
+input,button{width:100%;padding:12px 15px;margin-top:8px;border:1px solid #ccc;border-radius:6px;font-size:15px;transition:border 0.2s ease,box-shadow 0.2s ease;}
+input:focus{border-color:#3498db;box-shadow:0 0 5px rgba(52,152,219,0.3);outline:none;}
+
+/* Buttons */
+button{background-color:#3498db;color:#fff;border:none;font-weight:600;margin-top:20px;cursor:pointer;transition:background 0.2s ease, transform 0.1s ease;}
+button:hover:enabled{background-color:#2980b9;transform:translateY(-1px);}
+button:disabled{opacity:0.7;cursor:not-allowed;}
+
+/* Spinner */
+.spinner{border:3px solid #f3f3f3;border-top:3px solid #fff;border-radius:50%;width:16px;height:16px;display:inline-block;animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:6px;}
+@keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
+
+/* Table styling */
+#allFieldUsersTable{margin-top:20px;border-collapse:collapse;width:100%;display:block;max-height:400px;overflow-y:auto;}
+#allFieldUsersTable th,#allFieldUsersTable td{border:1px solid #ddd;padding:12px;text-align:left;font-size:14px;min-width:100px;}
+#allFieldUsersTable th{background:#3498db;color:#fff;position:sticky;top:0;z-index:1;}
+#allFieldUsersTable tbody tr:nth-child(even){background:#f9f9f9;}
+#allFieldUsersTable tbody tr:hover{background:#eaf4fc;cursor:pointer;}
+
+/* Popup panel */
+#popupPanel{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;padding:25px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.15);z-index:2000;width:90%;max-width:500px;}
+#popupPanel h4{text-align:center;margin-bottom:15px;}
+#popupOverlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:1500;}
+
+/* Users with Access scrollable */
+#fieldUsers{
+  max-height:250px;
+  overflow-y:auto;
+  padding:10px;
+  border:1px solid #ddd;
+  border-radius:6px;
+  background:#fdfdfd;
+}
+
+/* User details card */
+#userDetails{margin-top:15px;padding:15px;background:#f0f4f7;border-radius:8px;display:none;}
+#userDetails p{margin:8px 0;}
+#status{margin-top:20px;font-weight:bold;text-align:center;color:#e74c3c;}
+
+/* Logout Button small */
+#logoutBtn {
+  background:#e74c3c;
+  color:white;
+  border:none;
+  padding:6px 12px;
+  border-radius:4px;
+  cursor:pointer;
+  font-size:13px;
+  margin-top:0;
+  width:auto;
+}
+#logoutBtn:hover { background:#c0392b; }
+
+/* Responsive */
+@media(max-width:600px){
+  .card{padding:20px 15px;}
+  input,button{font-size:14px;}
+  #allFieldUsersTable th,#allFieldUsersTable td{padding:10px;font-size:13px;}
+}
+/* Users with Access scrollable table */
+.fieldUsersTable { width:100%; border-collapse:collapse; }
+.fieldUsersTable th,.fieldUsersTable td { border:1px solid #ddd; padding:10px; font-size:14px; text-align:left; }
+.fieldUsersTable th { background:#3498db; color:#fff; position:sticky; top:0; z-index:2; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="headerRow">
+    <h2 id="pageTitle">Login</h2>
+    <button id="logoutBtn" style="display:none;">Logout</button>
+  </div>
+
+  <!-- Login Section -->
+  <div id="loginSection">
+    <label>Email:</label>
+    <input type="email" id="loginEmail" placeholder="Enter email">
+    <label>Password:</label>
+    <input type="password" id="loginPassword" placeholder="Enter password">
+    <button onclick="loginUser(this)">Login</button>
+    <button id="signupTrigger" onclick="showSignup()" style="display:none;">Signup Instead</button>
+  </div>
+
+  <!-- Signup Section -->
+  <div id="signupSection" style="display:none;">
+    <h3>Signup</h3>
+    <label>Email:</label>
+    <input type="email" id="signupEmail">
+    <label>Phone:</label>
+    <input type="text" id="signupPhone">
+    <label>Password:</label>
+    <input type="password" id="signupPassword">
+    <label>Confirm Password:</label>
+    <input type="password" id="signupConfirm">
+    <button onclick="signupUser(this)">Signup</button>
+  </div>
+
+  <!-- ACL Dashboard -->
+  <div id="aclSection" style="display:none;">
+    <h3>All Field IDs & Users</h3>
+    <table id="allFieldUsersTable">
+      <thead>
+        <tr>
+          <th>Field List ID</th>
+          <th>Field List Name</th>
+          <th>User ID</th>
+          <th>Email</th>
+          <th>Phone</th>
+        </tr>
+      </thead>
+      <tbody id="allFieldUsersBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Popup Panel -->
+  <div id="popupOverlay"></div>
+  <div id="popupPanel">
+    <h4>Users with Access</h4>
+    <div id="fieldUsers">
+      <table class="fieldUsersTable">
+        <thead>
+          <tr><th>User ID</th><th>Email</th><th>Phone</th></tr>
+        </thead>
+        <tbody id="fieldUsersBody"></tbody>
+      </table>
+    </div>
+    <label>User Email or Phone:</label>
+    <input type="text" id="contact">
+    <button onclick="lookupUser(this)">Lookup User</button>
+
+    <div id="userDetails">
+      <input type="hidden" id="userId">
+      <p><strong>Email:</strong> <span id="userEmail"></span></p>
+      <p><strong>Phone:</strong> <span id="userPhone"></span></p>
+      <button onclick="addToACL(this)">Add to ACL</button>
+    </div>
+    <button onclick="closePopup()" style="margin-top:15px;background:#e74c3c;">Close</button>
+  </div>
+</div>
+<div id="status"></div>
+
+<script>
+// Utility functions
+async function safeJson(res){try{return await res.json();}catch{return {message:await res.text()};}}
+function setPageTitle(t){document.getElementById('pageTitle').textContent=t;}
+function setLoading(btn,isLoading,text=""){if(isLoading){btn.disabled=true;btn.innerHTML=`<span class="spinner"></span> ${text||btn.textContent}`;}else{btn.disabled=false;btn.textContent=text||btn.textContent;}}
+
+// Show login/signup
+function showSignup(){
+  setPageTitle('Signup');
+  loginSection.style.display='none';
+  signupSection.style.display='block';
+  aclSection.style.display='none';
+  signupTrigger.style.display='none';
+  status.textContent='';
+}
+
+// Show ACL dashboard
+function showACLManager(){
+  setPageTitle('Access Control Manager');
+  loginSection.style.display='none';
+  signupSection.style.display='none';
+  aclSection.style.display='block';
+  document.getElementById('logoutBtn').style.display='inline-block';
+  status.textContent=''; 
+  loadAllFieldUsers();
+}
+
+// Login
+async function loginUser(btn){
+  const email=loginEmail.value.trim(),password=loginPassword.value.trim();
+  if(!email||!password){status.textContent='Email and password required.';return;}
+  setLoading(btn,true,"Logging in...");
+  try{
+    const res=await fetch('http://localhost:5000/login_fieldlistid',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+    const data=await safeJson(res);
+    if(res.ok){
+        // Persist login
+        localStorage.setItem('isLoggedIn','true');
+        localStorage.setItem('userEmail', email);
+
+        userId.value=''; 
+        userEmail.textContent=''; 
+        userPhone.textContent=''; 
+        userDetails.style.display='none'; 
+        showACLManager();
+    }
+    else{ 
+        status.textContent=data.message||'Login failed.'; 
+        if((data.message||'').toLowerCase().includes('not found')) signupTrigger.style.display='inline-block'; 
+    }
+  }catch(e){console.error(e);status.textContent='Error during login.';}
+  setLoading(btn,false,"Login");
+}
+
+// Signup
+async function signupUser(btn){
+  const email=signupEmail.value.trim(), phone=signupPhone.value.trim(), password=signupPassword.value.trim(), confirm=signupConfirm.value.trim();
+  if(!email||!phone||!password||!confirm){ status.textContent='All signup fields are required.'; return;}
+  setLoading(btn,true,"Signing up...");
+  try{
+    const res=await fetch('http://localhost:5000/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,phone_number:phone,password,confirm_password:confirm})});
+    const data=await safeJson(res);
+    status.textContent=data.message||'Signup complete.'; 
+    if(res.ok){
+        localStorage.setItem('isLoggedIn','true');
+        localStorage.setItem('userEmail', email);
+        showACLManager();
+    }
+  }catch(e){console.error(e);status.textContent='Error during signup.';}
+  setLoading(btn,false,"Signup");
+}
+
+// Load all field users
+async function loadAllFieldUsers(){
+  const tbody=document.getElementById("allFieldUsersBody");
+  tbody.innerHTML="<tr><td colspan='5'>Loading...</td></tr>";
+  try{
+    const res=await fetch('http://localhost:5000/all-field-users');
+    const data=await safeJson(res);
+    if(res.ok && Array.isArray(data)){
+      if(data.length===0){ tbody.innerHTML="<tr><td colspan='5'>No data found</td></tr>"; }
+      else{ 
+        tbody.innerHTML=data.map(r=>`<tr data-field="${r.fieldlistid}"><td>${r.fieldlistid}</td><td>${r.fieldlist_name || '-'}</td><td>${r.user_registry_id}</td><td>${r.email||'-'}</td><td>${r.phone_num||'-'}</td></tr>`).join(""); 
+        tbody.querySelectorAll("tr").forEach(row=>{ row.addEventListener("click",()=>openPopup(row.dataset.field)); });
+      }
+    } else { tbody.innerHTML=`<tr><td colspan='5'>${data.message||'Error loading data'}</td></tr>`; }
+  }catch(e){ console.error(e); tbody.innerHTML="<tr><td colspan='5'>Error loading users</td></tr>"; }
+}
+
+// Popup functions
+function openPopup(fid){popupOverlay.style.display='block';popupPanel.style.display='block';contact.value='';userDetails.style.display='none';popupPanel.dataset.field=fid;loadUsersForField(fid);}
+function closePopup(){popupOverlay.style.display='none';popupPanel.style.display='none';}
+
+async function loadUsersForField(fid){
+  const tbody=document.getElementById('fieldUsersBody'); 
+  tbody.innerHTML="<tr><td colspan='3'>Loading...</td></tr>";
+  try {
+    const res=await fetch(`http://localhost:5000/field-users/${fid}`);
+    const data=await safeJson(res);
+    if(res.ok && Array.isArray(data)){
+      if(data.length===0){ tbody.innerHTML="<tr><td colspan='3'>No users found</td></tr>"; }
+      else{ tbody.innerHTML=data.map(u=>`<tr><td>${u.user_id}</td><td>${u.email||'-'}</td><td>${u.phone_num||'-'}</td></tr>`).join(""); }
+    } else { tbody.innerHTML=`<tr><td colspan='3'>${data.message||'Error'}</td></tr>`; }
+  } catch(e){ console.error(e); tbody.innerHTML="<tr><td colspan='3'>Error loading users</td></tr>"; }
+}
+
+// Lookup user
+async function lookupUser(btn){
+  const contactInput = document.getElementById('contact'); const userDetailsDiv = document.getElementById('userDetails'); const contact = contactInput.value.trim();
+  if(!contact){ status.textContent='Please enter email or phone.'; return; }
+  setLoading(btn,true,"Looking up...");
+  try{
+    const res=await fetch('http://localhost:5000/lookup-user',{method:'POST',headers:{'Content-Type':'application/json'},body: JSON.stringify({contact})});
+    const data=await safeJson(res);
+    if(res.ok && data.user_id){userId.value=data.user_id;userEmail.textContent=data.email;userPhone.textContent=data.phone_num;userDetailsDiv.style.display='block';status.textContent='';}
+    else{status.textContent=data.message||'User not found.';userDetailsDiv.style.display='none';}
+  } catch(e){console.error(e);status.textContent='Error looking up user.';userDetailsDiv.style.display='none';}
+  setLoading(btn,false,"Lookup User");
+}
+
+// Add to ACL
+async function addToACL(btn){
+  const fid=popupPanel.dataset.field, uid=userId.value, contact= document.getElementById('contact').value.trim();
+  if(!fid){status.textContent='No Field List ID selected.';return;}
+  if(!uid || !contact){status.textContent='Please lookup a user first.';return;}
+  setLoading(btn,true,"Adding...");
+  try{
+    const res=await fetch('http://localhost:5000/add-to-acl',{method:'POST',headers:{'Content-Type':'application/json'},body: JSON.stringify({field_list_id:fid, user_id:uid, contact_value:contact})});
+    const data=await safeJson(res);
+    if(res.ok){status.textContent=data.message||'User added to ACL.';status.style.color='#27ae60';setTimeout(()=>{status.textContent='';},3000);loadAllFieldUsers();loadUsersForField(fid);}
+    else{status.textContent=data.message||'Error adding user.';status.style.color='#e74c3c';}
+    contact.value='';userDetails.style.display='none';
+  } catch(e){console.error(e);status.textContent='Error adding user.';userDetails.style.display='none';}
+  setLoading(btn,false,"Add to ACL");
+}
+
+// Logout
+document.getElementById("logoutBtn").addEventListener("click", function(){
+  localStorage.clear(); // clear login state
+  loginSection.style.display='block'; 
+  signupSection.style.display='none'; 
+  aclSection.style.display='none'; 
+  logoutBtn.style.display='none'; 
+  setPageTitle('Login');
+});
+
+// Check login on page load
+window.onload = () => {
+  const isLoggedIn = localStorage.getItem('isLoggedIn');
+  if (isLoggedIn === 'true') {
+      showACLManager();
+  } else {
+      setPageTitle('Login');
+      loginSection.style.display='block';
+      signupSection.style.display='none';
+      aclSection.style.display='none';
+      userDetails.style.display='none';
+      signupTrigger.style.display='none';
+  }
+};
+</script>
+</body>
+</html>

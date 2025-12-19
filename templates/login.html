@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Login</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(to right, #e0eafc, #cfdef3);
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .card {
+            max-width: 420px;
+            margin: auto;
+            margin-top: 80px;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            background-color: #fff;
+        }
+        .form-control:focus {
+            box-shadow: none;
+            border-color: #007bff;
+        }
+        .form-icon {
+            position: absolute;
+            left: 15px;
+            top: 10px;
+            color: #007bff;
+        }
+        .form-group {
+            position: relative;
+        }
+        .form-group input {
+            padding-left: 40px;
+        }
+        .btn-primary {
+            width: 100%;
+            border-radius: 25px;
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 25px;
+            color: #007bff;
+        }
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1055;
+        }
+        .navbar {
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .navbar-brand, .nav-link {
+            color: #007bff !important;
+        }
+        .nav-link:hover {
+            color: #0056b3 !important;
+        }
+        .extra-links {
+            text-align: center;
+            margin-top: 15px;
+        }
+        .extra-links a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .extra-links a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <div class="card">
+        <h2><i class="fa fa-sign-in-alt"></i> Login</h2>
+        <form id="loginForm">
+            <div class="form-group mb-3">
+                <i class="fa fa-envelope form-icon"></i>
+                <input type="email" class="form-control" id="email" placeholder="Email" required>
+            </div>
+            <div class="form-group mb-4">
+                <i class="fa fa-lock form-icon"></i>
+                <input type="password" class="form-control" id="password" placeholder="Password" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Login</button>
+        </form>
+        <div class="extra-links">
+            <p>Don’t have an account? <a href="/register">Register here</a></p>
+        </div>
+    </div>
+
+    <div class="toast-container">
+        <div id="toastMessage" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <strong class="me-auto" id="toastTitle"></strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body" id="toastBody"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            const res = await fetch('http://localhost:5000/login_fieldlistid', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await res.json();
+            const toast = document.getElementById('toastMessage');
+            const toastTitle = document.getElementById('toastTitle');
+            const toastBody = document.getElementById('toastBody');
+            const bootstrapToast = new bootstrap.Toast(toast);
+
+            if (res.ok) {
+                localStorage.setItem('access_token', data.access_token);
+                localStorage.setItem('user_registry_id', data.user_registry_id);
+
+                toastTitle.textContent = 'Success';
+                toastBody.textContent = data.message || 'Login successful';
+                toast.classList.remove('bg-danger');
+                toast.classList.add('bg-success', 'text-white');
+                bootstrapToast.show();
+
+                setTimeout(() => {
+                    window.location.href = '/create_fieldlistid';
+                }, 2000);
+            } else {
+                toastTitle.textContent = 'Error';
+                toastBody.textContent = data.message || 'Login failed';
+                toast.classList.remove('bg-success');
+                toast.classList.add('bg-danger', 'text-white');
+                bootstrapToast.show();
+            }
+        });
+    </script>
+</body>
+</html>

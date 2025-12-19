@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>User FieldLists</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    .copy-btn {
+      cursor: pointer;
+      font-size: 18px;
+      color: #0d6efd;
+    }
+    .copy-btn:hover {
+      color: #0a58ca;
+    }
+    .table-container {
+      max-width: 1000px;
+      margin: 30px auto;
+    }
+    body {
+      background: linear-gradient(to right, #e0eafc, #cfdef3);
+      font-family: 'Segoe UI', sans-serif;
+    }
+  </style>
+</head>
+<!-- Toast container (center full width) -->
+<div class="toast-container position-fixed top-0 start-50 translate-middle-x w-100 p-3" style="z-index: 1100;"></div>
+
+<body>
+  {% include 'navbar.html' %}
+
+  <div class="container table-container">
+    <h3 class="mb-4">Your FieldLists</h3>
+    <div id="alert-container"></div>
+    <table class="table table-bordered table-hover align-middle">
+      <thead class="table-light">
+      <tr>
+        <th>FieldList ID (Click on fieldlistid to view geoids)</th>
+        <th>FieldList Name</th>
+        <th>Copy ID</th>
+        <th>Link</th>
+        <th>QR Code</th>
+      </tr>
+      </thead>
+      <tbody id="fieldlist-table">
+        <tr><td colspan="5" class="text-center">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- QR Code Modal -->
+  <div class="modal fade" id="qrModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">QR Code</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body text-center">
+          <div id="qrLoader" class="spinner-border text-primary" role="status"></div>
+          <img id="qrImage" src="" alt="QR Code" class="img-fluid d-none"/>
+          <a id="qrDownload" download="fieldlistid_qr.png" class="btn btn-success mt-3 d-none">Download</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GeoIDs Modal -->
+  <div class="modal fade" id="geoidsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">GeoIDs for FieldList</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="geoidsLoader" class="spinner-border text-primary" role="status"></div>
+          <ul id="geoidsList" class="list-group d-none"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+  document.addEventListener("DOMContentLoaded", function() {
+    const userId = localStorage.getItem("user_registry_id");
+    if (!userId) {
+      window.location.href = "/login_page";
+      return;
+    }
+
+    fetch("http://localhost:5000/get_fieldlists", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_registry_id: userId })
+    })
+    .then(res => res.json())
+    .then(data => {
+      const tableBody = document.getElementById("fieldlist-table");
+      tableBody.innerHTML = "";
+
+      if (data.fieldlists && data.fieldlists.length > 0) {
+      data.fieldlists.forEach(fld => {
+        const row = `
+          <tr>
+            <td class="fw-bold text-primary" style="cursor:pointer" onclick="showGeoids('${fld.fieldlistid}')">${fld.fieldlistid}</td>
+            <td>${fld.fieldlistid_name || '-'}</td>
+            <td><i class="fa-solid fa-copy copy-btn" onclick="copyToClipboard('${fld.fieldlistid}')" title="Copy FieldList ID"></i></td>
+            <td><i class="fa-solid fa-link copy-btn" onclick="generateLink('${fld.fieldlistid}')" title="Get Link"></i></td>
+            <td><i class="fa-solid fa-qrcode copy-btn" onclick="showQr('${fld.fieldlistid}')" title="Show QR Code"></i></td>
+          </tr>
+        `;
+        tableBody.insertAdjacentHTML("beforeend", row);
+      });
+      } else {
+        tableBody.innerHTML = `<tr><td colspan="5" class="text-center">No fieldlists found</td></tr>`;
+      }
+    })
+    .catch(err => {
+      document.getElementById("fieldlist-table").innerHTML =
+        `<tr><td colspan="5" class="text-center text-danger">Error loading data</td></tr>`;
+    });
+  });
+
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+      const alertBox = document.getElementById("alert-container");
+      alertBox.innerHTML = `<div id="copy-alert" class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-check-circle"></i> Copied: <b>${text}</b>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>`;
+      setTimeout(() => {
+        const alertElement = document.getElementById("copy-alert");
+        if (alertElement) {
+          alertElement.classList.remove("show");
+          setTimeout(() => alertElement.remove(), 150);
+        }
+      }, 1000);
+    });
+  }
+
+  async function generateLink(fieldlistId) {
+    try {
+      const res = await fetch(`http://localhost:5000/link_fieldlistid?fieldlist_id=${fieldlistId}`);
+      const data = await res.json();
+      if (data.link) {
+        copyToClipboard(data.link);
+      } else {
+        showErrorModal("Error", data.error || "Unable to generate link");
+      }
+    } catch (e) {
+      showErrorModal("Request Failed", e.message);
+    }
+  }
+
+  async function showQr(fieldlistId) {
+    const modal = new bootstrap.Modal(document.getElementById("qrModal"));
+    modal.show();
+
+    document.getElementById("qrLoader").classList.remove("d-none");
+    document.getElementById("qrImage").classList.add("d-none");
+    document.getElementById("qrDownload").classList.add("d-none");
+
+    const qrUrl = `http://localhost:5000/qrcode_fieldlistid?fieldlist_id=${fieldlistId}`;
+    const img = document.getElementById("qrImage");
+    img.onload = () => {
+      document.getElementById("qrLoader").classList.add("d-none");
+      img.classList.remove("d-none");
+      document.getElementById("qrDownload").href = qrUrl;
+      document.getElementById("qrDownload").classList.remove("d-none");
+    };
+    img.src = qrUrl + "&t=" + Date.now(); // prevent caching
+  }
+
+  async function showGeoids(fieldlistId) {
+    const modal = new bootstrap.Modal(document.getElementById("geoidsModal"));
+    modal.show();
+
+    document.getElementById("geoidsLoader").classList.remove("d-none");
+    const list = document.getElementById("geoidsList");
+    list.classList.add("d-none");
+
+    try {
+      const res = await fetch(`http://localhost:5000/get_geoids_by_fieldlistid?fieldlist_id=${fieldlistId}`);
+      const data = await res.json();
+
+      list.innerHTML = "";
+      if (data.geoids && data.geoids.length > 0) {
+        data.geoids.forEach(g => {
+          list.insertAdjacentHTML("beforeend", `<li class="list-group-item">${g}</li>`);
+        });
+      } else {
+        list.innerHTML = `<li class="list-group-item text-danger">No geoids found</li>`;
+      }
+      document.getElementById("geoidsLoader").classList.add("d-none");
+      list.classList.remove("d-none");
+    } catch (e) {
+      document.getElementById("geoidsLoader").classList.add("d-none");
+      list.classList.remove("d-none");
+      list.innerHTML = `<li class="list-group-item text-danger">Error fetching geoids: ${e.message}</li>`;
+    }
+  }
+
+  function showErrorModal(title, message) {
+    const alertBox = document.getElementById("alert-container");
+    alertBox.innerHTML = `<div class="alert alert-danger alert-dismissible fade show" role="alert">
+      <i class="fa-solid fa-triangle-exclamation"></i> ${title}: ${message}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>`;
+  }
+    function showToast(message, type = "success") {
+      const container = document.querySelector(".toast-container");
+      const bgClass = type === "success" ? "bg-success text-white" : "bg-danger text-white";
+
+      const toast = document.createElement("div");
+      toast.className = `toast align-items-center text-center ${bgClass} border-0 w-100`;
+      toast.role = "alert";
+      toast.innerHTML = `
+        <div class="d-flex justify-content-center">
+          <div class="toast-body fw-bold fs-6">${message}</div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+      `;
+
+      container.appendChild(toast);
+
+      const bsToast = new bootstrap.Toast(toast, { delay: 2000 });
+      bsToast.show();
+
+      toast.addEventListener("hidden.bs.toast", () => toast.remove());
+    }
+
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast(`<i class="fa-solid fa-check-circle"></i> Copied: <b>${text}</b>`);
+      });
+    }
+
+    function showError(message) {
+      showToast(`<i class="fa-solid fa-triangle-exclamation"></i> ${message}`, "danger");
+    }
+  </script>
+</body>
+</html>

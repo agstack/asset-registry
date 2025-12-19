@@ -12,6 +12,8 @@ from shapely.wkt import loads as load_wkt
 from flask_wtf.csrf import generate_csrf
 from localStoragePy import localStoragePy
 import regionlist_id.regionListId as region_service
+import regionlist_id.fieldListId as field_service
+from flask import Flask, render_template, jsonify, request, url_for, session
 
 load_dotenv()
 localStorage = localStoragePy('asset-registry', 'text')
@@ -906,8 +908,145 @@ def route_map_page():
 def route_generate_qrcode():
     return region_service.generate_qrcode()
 
-
 # ---------- regionlistid map/qr code Start -------------
+
+
+# ---------- fieldlistid map/qr code Start -------------
+
+@app.route('/login_fieldlistid', methods=['POST'])
+def route_login():
+    return field_service.login()
+
+@app.route('/signup', methods=['POST'])
+def route_signup():
+    return field_service.signup()
+
+@app.route('/verify-otp', methods=['POST'])
+def route_verify_otp():
+    return field_service.verify_otp()
+
+@app.route("/ingest", methods=["POST"])
+def route_ingest_geoids():
+    return  field_service.ingest_geoids()
+
+@app.route('/get_user_data', methods=['POST'])
+def route_get_user_data():
+    return field_service.get_user_data()
+
+@app.route('/add-to-acl', methods=['POST'])
+def route_add_to_acl():
+    return field_service.add_to_acl()
+
+@app.route('/request-otp-fieldlistid', methods=['POST'])
+def route_request_otp_fieldlistid():
+    return field_service.request_otp_fieldlistid()
+
+@app.route('/verify-otp-fieldlistid', methods=['POST'])
+def route_verify_otp_fieldlistid():
+    return field_service.verify_otp_fieldlistid()
+
+@app.route("/getWKT/field/<field_list_id>", methods=["POST"])
+def route_get_field_view(field_list_id):
+    return field_service.get_field_view(field_list_id)
+
+@app.route("/getWKT/mask/<fieldlistid>", methods=["GET"])
+def route_get_mask_view(fieldlistid):
+    return field_service.get_mask_view(fieldlistid)
+
+@app.route('/decode_fieldlistid', methods=['POST'])
+def route_decode_fieldlistid():
+    return field_service.decode_fieldlistid()
+
+@app.route('/qrcode_fieldlistid', methods=['GET'])
+def route_generate_fieldlistid_qrcode():
+    return field_service.generate_fieldlistid_qrcode()
+
+@app.route('/lookup-user', methods=['POST'])
+def route_lookup_user():
+    return field_service.lookup_user()
+
+@app.route('/field-list-ids')
+def route_get_field_list_ids():
+    return field_service.get_field_list_ids()
+
+@app.route('/check_approved_user', methods=['POST'])
+def route_heck_approved_user():
+    return field_service.heck_approved_user()
+
+@app.route("/get-geoids", methods=["POST"])
+def route_get_geoids():
+    return field_service.get_geoids()
+
+@app.route("/get_fieldlists", methods=["POST"])
+def route_get_fieldlists():
+    return field_service.get_fieldlists()
+
+@app.route('/get_user_data_acl', methods=['POST'])
+def route_get_user_data_acl():
+    return field_service.get_user_data_acl()
+
+@app.route('/all-field-users')
+def route_get_all_field_users():
+    return field_service.get_all_field_users()
+
+@app.route('/field-users/<field_list_id>', methods=['GET'])
+def route_get_field_users(field_list_id):
+    return field_service.get_field_users(field_list_id)
+
+@app.route('/field-users/<fieldlistid>')
+def route_get_users_for_field(fieldlistid):
+    return field_service.get_users_for_field(fieldlistid)
+
+@app.route('/link_fieldlistid', methods=['GET'])
+def route_link_fieldlistid():
+    return field_service.link_fieldlistid()
+
+@app.route("/get_geoids_by_fieldlistid", methods=["GET"])
+def route_get_geoids_by_fieldlistid():
+    return field_service.get_geoids_by_fieldlistid()
+
+@app.route("/create_facility", methods=["POST"])
+def route_create_facility():
+    return field_service.create_facility()
+
+@app.route("/getWKT/facility/<facilityid>", methods=["GET"])
+def route_get_facility_view(facilityid):
+    return field_service.get_facility_view(facilityid)
+
+@app.route("/request_access", methods=["POST"])
+def route_request_access():
+    return field_service.request_access()
+
+@app.route("/pending_requests", methods=["GET"])
+def route_pending_requests():
+    return field_service.pending_requests()
+
+@app.route("/approve_request", methods=["POST"])
+def route_approve_request():
+    return field_service.approve_request()
+
+@app.route('/admin-acl')
+def admin_acl_page():
+    return render_template('admin_acl.html')
+
+@app.route('/register')
+def register_page():
+    return render_template('register.html')
+
+@app.route('/login_page')
+def login_page():
+    return render_template('login.html')
+
+@app.route('/create_fieldlistid')
+def create_fieldlistid():
+    return render_template('create_fieldlistid.html')
+
+@app.route('/fildlist_page')
+def fildlist_page():
+    return render_template('fieldlists.html')
+
+# ---------- fieldlistid map/qr code End -------------
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

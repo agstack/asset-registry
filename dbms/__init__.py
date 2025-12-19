@@ -7,7 +7,8 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 load_dotenv()
 
-app = Flask(__name__)
+
+app = Flask(__name__,template_folder="templates")
 CORS(app)
 app.config.from_object(os.getenv('APP_SETTINGS'))
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False

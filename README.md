@@ -164,7 +164,7 @@ If you see this response, proceed to **Step 5** immediately.
     ```
 
 
-## 🗺️ Region List & QR Mapping Service (Test Links)
+## 🗺️ Region List & QR Mapping Service
 This service provides a way to group multiple geo-spatial regions into a single, deterministic RegionListID. It includes tools to generate QR codes for easy sharing and an endpoint to retrieve GeoJSON data for map visualization.
 
 ### Region List Management
@@ -276,3 +276,493 @@ The visualization page can be accessed via:
 `/map.html?regionlist_id=cca1099a-1a2b3bc0-a0f56527-e80253fb-484ad822-5d12698e-170cf1a3-8149c949`
 
 You can edit or add a custom HTML template to show the polygon on the map.
+
+# 🌾 FieldList & QR Mapping Service
+
+This system allows users to register accounts, create "FieldLists" from registered GeoIDs, manage access via ACL (Access Control Lists), and view field data.
+
+The system distinguishes between **Masked Views** (public/protected) and **Actual Field Views** (requires OTP/Approval).
+
+---
+
+## 🔐 User Authentication & Management
+
+Endpoints for user signup, OTP verification, and login.
+
+### 1. User Signup
+Register a new user to the system.
+
+**Endpoint:** `POST /signup`
+
+****Body (JSON):****
+```json
+{
+    "firstName": "test",
+    "lastName": "test",
+    "companyName": "TP",
+    "email": "test@gmail.com",
+    "phone_number": "+919876543210",
+    "password": "Password@123",
+    "confirm_password": "Password@123"
+}
+```
+
+**Response:**
+
+```json
+{
+    "message": "OTP sent to +919876543210. Please verify to complete registration.",
+    "public_key": "bf201011-c9b3-42c9-89e7-ee4b538ca125",
+    "status": "otp_sent"
+}
+```
+---
+
+### 2. Verify Signup OTP
+Verify the phone number to complete account creation.
+
+**Endpoint:** `POST /verify-otp`
+
+**Body (JSON):**
+
+```json
+{
+    "public_key": "bf201011-c9b3-42c9-89e7-ee4b538ca125",
+    "otp": "890251"
+}
+```
+
+**Response:**
+
+```json
+{
+    "email": "test@gmail.com",
+    "phone_num": "+919876543210",
+    "message": "User created successfully"
+}
+```
+---
+
+###  3. Login
+Login to receive an access_token and user_registry_id.
+
+**Endpoint:** `POST /login_fieldlistid`
+
+**Body (JSON):**
+
+```json
+{
+    "email": "test@gmail.com",
+    "password": "Password@123"
+}
+```
+
+**Response:**
+
+```json
+{
+    "access_token": "eyJhbGciOiJIUzI1NiIsIn...",
+    "message": "Login successful",
+    "user_registry_id": "3c5fc37f-abd3-465c-a0c3-a3dae580ed13"
+}
+```
+---
+
+### 4. Lookup User
+Find a user_id using an email address or phone number.
+
+**Endpoint:** `POST /lookup-user`
+
+**Body (JSON):**
+
+```json
+{
+    "contact": "test@gmail.com"
+}
+```
+
+**Response:**
+
+```json
+{
+    "email": "test@gmail.com",
+    "phone_num": "+919876543210",
+    "user_id": "3c5fc37f-abd3-465c-a0c3-a3dae580ed13"
+}
+```
+---
+
+## 🗺️ FieldList Management
+Create and manage groups of GeoIDs (FieldLists).
+
+### 5. Create FieldList (Ingest)
+Create a new FieldList ID from a list of GeoIDs.
+
+**Endpoint:** `POST /ingest`
+
+**Body (JSON):**
+
+
+```json
+{
+    "geoids": [
+        "5e2b7ee994b1ff30ce47754379968eecd380a59a0322e5fadeb2c90a69163133"
+    ],
+    "user_id": "3c5fc37f-abd3-465c-a0c3-a3dae580ed13",
+    "fieldlistid_name": "test_field_jp"
+}
+```
+
+**Response:**
+
+```json
+{
+    "fieldListId": "f810ac2f-51659e5d...",
+    "maskListId": "cde5ce8de7e6...",
+    "maskList": [...],
+    "fieldListName": "test_field_jp"
+}
+```
+---
+
+### 6. Get All FieldList IDs
+Retrieve a list of all FieldList IDs available in the system.
+
+**Endpoint:** `GET /field-list-ids`
+
+**Response:**
+
+```json
+[
+    "08fa1695-e5739d2a...",
+    "0ace0b45-aff2ad42..."
+]
+```
+---
+
+### 7. Get User's FieldLists
+Get all FieldLists associated with a specific user.
+
+**Endpoint:** `GET /all-field-users`
+
+**Response:**
+
+```json
+[
+    {
+        "email": "test@gmail.com",
+        "fieldlist_name": "Name_857c93",
+        "fieldlistid": "b2451616-8fa08ab0...",
+        "phone_num": "8054840910",
+        "user_registry_id": "3c5fc37f-abd3-465c..."
+    }
+]
+```
+---
+
+## 👁️ Data Visualization & Masking
+View masked data (polygons) and verify identity to view actual field data.
+
+### 8. Get Masked Data
+View the masked representation (S2 Cells) of a FieldList.
+
+**Endpoint:** `GET /getWKT/mask/{field_list_id}`
+
+**Response:**
+
+```json
+{
+    "cells": [
+        {
+            "geometry": { "type": "Polygon", "coordinates": [...] },
+            "s2_cell_id": "89c25f"
+        }
+    ],
+    "view": "mask"
+}
+```
+---
+
+### 9. Request OTP for Field Access
+Request an OTP to view the actual field data.
+
+**Endpoint:** `POST /request-otp-fieldlistid`
+
+**Body (JSON):**
+```json
+{
+    "user_registry_id": "3c5fc37f-abd3-465c-a0c3-a3dae580ed13",
+    "field_list_id": "b2451616-8fa08ab0-a979868f-6c47ca6c-5f02a3ed-c3f9de69-a91ed478-bde6c14c"
+}
+```
+**Response:**
+
+```json
+{
+    "message": "OTP sent to registred number: ******910",
+    "status": "success"
+}
+```
+---
+
+### 10. Verify Field Access OTP
+Verify the OTP to authorize viewing of field data.
+
+**Endpoint:** `POST /verify-otp-fieldlistid`
+
+**Body (JSON):**
+
+```json
+{
+    "user_registry_id": "3c5fc37f-abd3-465c-a0c3-a3dae580ed13",
+    "field_list_id": "b2451616-8fa08ab0-a979868f-6c47ca6c-5f02a3ed-c3f9de69-a91ed478-bde6c14c",
+    "otp": "998173"
+}
+```
+
+**Response:**
+
+```json
+{
+    "field_list_id": "b2451616-8fa08ab0-a979868f-6c47ca6c-5f02a3ed-c3f9de69-a91ed478-bde6c14c", "message": "OTP verified",
+    "status": "success",
+    "user_registry_id": "3c5fc37f-abd3-465c-a0c3-a3dae580ed13"
+}
+```
+---
+
+### 11. Get Actual Field Data (WKT)
+Once authorized/verified, retrieve the actual field geometry.
+
+**Endpoint:** `POST /getWKT/field/{field_list_id}`
+
+**Body (JSON):**
+
+```json
+{
+    "user_registry_id": "3c5fc37f-abd3-465c-a0c3-a3dae580ed13"
+}
+```
+
+**Response:**
+
+```json
+{
+    "fields": [
+        {
+            "fieldId": "0b5cde4783",
+            "geoid": "7296a4a0...",
+            "wkt": "POLYGON ((-73.8486 40.7193, ...))"
+        }
+    ],
+    "view": "field"
+}
+```
+---
+
+## 🔒 Access Control (ACL)
+Manage permissions for who can view FieldLists.
+
+### 12. Request Access
+User requests access to a specific FieldList.
+
+**Endpoint:** `POST /request_access`
+
+**Body (JSON):**
+
+```json
+{
+    "user_registry_id": "3c5fc37f-abd3-465c-a0c3-a3dae580ed13",
+    "field_list_id": "b55680e4-4a2780b9-8004444e-bd3ebbd6-d317212f-498f15a9-b7d43133-e91cae16"
+}
+```
+
+**Response:**
+
+```json
+  {
+      "message": "Access approved",
+      "status": "success"
+  }
+```
+---
+
+### 13. Get Pending Requests
+View all access requests waiting for approval.
+
+**Endpoint:** `GET /pending_requests`
+
+**Response:**
+
+```json
+[
+    {
+        "acl_id": "f1cb6e83-30d7-4f43-ad2c-889b65592b80",
+        "email": "test@gmail.com",
+        "status": "Pending",
+        "field_list_name": "Test_fieldlistid_name_5"
+    }
+]
+```
+---
+
+### 14. Approve Request
+Approve a pending access request using the acl_id.
+
+**Endpoint:** `POST /approve_request`
+
+**Body (JSON):**
+
+```json
+{
+    "acl_id": "06a45e4b-fd47-48e3-8755-2739dd37e329"
+}
+```
+
+**Response:**
+```json
+{
+    "message": "request  processed",
+    "status": "success"
+}
+```
+---
+
+### 15. Direct Add to ACL
+Immediately approve a user for a FieldList without a request.
+
+**Endpoint:** `POST /add-to-acl`
+
+**Body (JSON):**
+
+```json
+{
+    "user_id": "3c5fc37f-abd3-465c-a0c3-a3dae580ed13",
+    "field_list_id": "6c5626d5-42f6dd1f-cb2bfe63-ba7f6ae0-f3633ce5-68f2168d-03269557-d5fb44d3"
+}
+```
+
+**Response:**
+
+```json
+{
+    "message": "User added to ACL and approved successfully"
+}
+
+```
+---
+
+## 🏭 Facility Management
+### 16. Create Facility
+Register a facility with a specific GeoID.
+
+**Endpoint:** `POST /create_facility`
+
+**Body (JSON):**
+
+```json
+{
+    "geoid": "a2ef5c4b3bbcc621f65232d28aebb46923f55b7cf8b85c075c50d3475fde6eb0",
+    "user_id": "3c5fc37f-abd3-465c-a0c3-a3dae580ed13",
+    "facility_name": "Facility one"
+}
+```
+**Response:**
+
+```json
+{
+    "facilityId": "61d1716d-a5ea-4e5d-9251-ebf4dfc45949", 
+    "facilityName": "Facility one", 
+    "geoid": "a2ef5c4b3bbcc621f65232d28aebb46923f55b7cf8b85c075c50d3475fde6eb0", 
+    "message": "Facility Created", 
+    "polygon": "POLYGON((-120.41666865348816 36.842314229195566,-120.4170870780945 36.84084598055944,-120.41578888893129 36.840661374203776,-120.41540801525117 36.841962195542074,-120.41666865348816 36.842314229195566))", 
+    "user_id": "3c5fc37f-abd3-465c-a0c3-a3dae580ed13"}
+
+```
+---
+
+### 17. Get Facility Data
+Retrieve WKT data for a facility.
+
+**Endpoint:** `GET /getWKT/facility/{facility_id}`
+
+**Response:**
+
+```json
+{
+    "facility_name": "MyTestFacility",
+    "wkt": "POLYGON ((-120.419 36.836, ...))"
+}
+```
+---
+
+## 📱 Links & QR Codes
+### 18. Get FieldList Public Link
+Generates a safe public link with an encoded FieldList ID.
+
+**Endpoint:** `GET /link_fieldlistid`
+
+**Query Params:** `?fieldlist_id={id}`
+
+**Response:**
+
+```json
+
+{
+    "link": "[http://147.93.45.127/fieldlistid_map.html?fieldlistid=ZjgxMGFjMmY](http://147.93.45.127/fieldlistid_map.html?fieldlistid=ZjgxMGFjMmY)..."
+}
+```
+---
+
+### 19. Get QR Code
+Download a QR code image for the FieldList map.
+
+**Endpoint:** `GET /qrcode_fieldlistid`
+
+**Query Params:** `?fieldlist_id={id}`
+
+**Response:** Binary Image Data (Save as .png)
+---
+
+## 🛠️ Utilities
+### 20. Get User GeoIDs
+Retrieve GeoIDs registered to the logged-in user.
+
+**Endpoint:** `POST /get-geoids`
+
+**Body (JSON):**
+
+```json
+{
+    "access_token": "YOUR_ACCESS_TOKEN",
+    "user_registry_id": "3c5fc37f-abd3-465c-a0c3-a3dae580ed13"
+}
+```
+
+**Response:**
+
+```json
+{
+    "geoids": [{"field_name": "102", "geoid": "a4fd692c2578b270a937ce77869361e3cd22cd0b021c6ad23c995868bd11651e"}, {"field_name": "105", "geoid": "1c00a0567929a228752822d564325623c51f6cdc81357fa043306d5c41b2b13e"}, {"field_name": "477d8dffaf92d265c56dca496167d71bfc1c34f443bc9a6677009963e6e99706", "geoid": "477d8dffaf92d265c56dca496167d71bfc1c34f443bc9a6677009963e6e99706"}, {"field_name": "1049f35c801ce88be72e210eeb9410ec9d7d4682b2ed46aaaa4641e392ffd669", "geoid": "1049f35c801ce88be72e210eeb9410ec9d7d4682b2ed46aaaa4641e392ffd669"}, {"field_name": "b9605fcc15025ec4844c91fff5b150038f738794016101d82bba29bc5a5aa41e"}],
+    "message": "Geo Ids fetched successfully", 
+    "user_registry_id": "3c5fc37f-abd3-465c-a0c3-a3dae580ed13"}
+```
+---
+
+### 21. Get GeoIDs by FieldList
+Extract GeoIDs contained within a FieldList ID.
+
+**Endpoint:** `GET /get_geoids_by_fieldlistid`
+
+**Query Params:** `?fieldlist_id={id}`
+
+**Response:**
+
+
+```json
+{
+    "fieldlistid": "f810ac2f...",
+    "geoids": ["5e2b7ee9..."]
+}
+```
+---

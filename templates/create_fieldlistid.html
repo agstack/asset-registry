@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Create Fieldlist ID</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(to right, #e0eafc, #cfdef3);
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .card {
+            max-width: 800px;
+            margin: auto;
+            margin-top: 60px;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+            background-color: #fff;
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #007bff;
+        }
+        .geoid-list {
+            max-height: 350px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 10px;
+        }
+        .btn-primary {
+            width: 100%;
+            border-radius: 25px;
+        }
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1055;
+        }
+        .fieldlist-result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f1f3f5;
+            border-radius: 8px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="card">
+        <h2><i class="fa fa-list"></i> Select GeoIDs</h2>
+        <form id="geoForm">
+            <div class="geoid-list mb-3" id="geoidsContainer"></div>
+
+            <!-- Fieldlist Name -->
+            <div class="mb-3">
+                <label for="fieldlistName" class="form-label">Fieldlist Name</label>
+                <input type="text" class="form-control" id="fieldlistName" placeholder="Enter a name for your Fieldlist" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="submitBtn">
+                <span id="submitBtnText">Create Fieldlist ID</span>
+                <span id="submitBtnSpinner" class="spinner-border spinner-border-sm ms-2 d-none"></span>
+            </button>
+        </form>
+
+        <!-- Fieldlist Result -->
+        <div id="fieldlistResult" class="fieldlist-result">
+            <strong>FieldListId:</strong>
+            <span id="fieldListIdText" class="ms-2"></span>
+            <button class="btn btn-sm btn-outline-secondary ms-2" onclick="copyFieldListId()">Copy</button>
+            
+            <div id="mapLinkSection" class="mt-2" style="display: none;">
+                <strong>Map Link:</strong>
+                <a href="#" id="mapLinkText" target="_blank" class="ms-2 small text-primary"></a>
+                <button class="btn btn-sm btn-outline-secondary ms-2" onclick="copyMapLink()">Copy Map Link</button>
+            </div>
+        </div>
+
+    <!-- Toast -->
+    <div class="toast-container">
+        <div id="toastMessage" class="toast align-items-center text-bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body" id="toastBody"></div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        async function loadGeoIDs() {
+            const access_token = localStorage.getItem("access_token");
+            const user_registry_id = localStorage.getItem("user_registry_id");
+
+            if (!access_token || !user_registry_id) {
+                showToast("User not authenticated. Redirecting to login...", true);
+                setTimeout(() => {
+                    window.location.href ='/';
+                }, 500);
+                return;
+            }
+
+            try {
+                const res = await fetch("http://localhost:5000/get-geoids", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ access_token, user_registry_id })
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    const container = document.getElementById("geoidsContainer");
+                    container.innerHTML = `
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Select</th>
+                                    <th>GeoID</th>
+                                    <th>Field Name</th>
+                                </tr>
+                            </thead>
+                            <tbody id="geoidsTableBody"></tbody>
+                        </table>
+                    `;
+                    const tbody = document.getElementById("geoidsTableBody");
+
+                    data.geoids.forEach(item => {
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>
+                                    <input class="form-check-input" type="checkbox" value="${item.geoid}" id="geo-${item.geoid}">
+                                </td>
+                                <td class="small">${item.geoid}</td>
+                                <td class="small">${item.field_name}</td>
+                            </tr>
+                        `;
+                    });
+                }
+                else {
+                    showToast(data.message || "Failed to load geoids", true);
+                }
+            } catch (err) {
+                showToast("Error fetching geoids: " + err.message, true);
+            }
+        }
+
+        document.getElementById("geoForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const user_id = localStorage.getItem("user_registry_id");
+            const checkboxes = document.querySelectorAll(".form-check-input:checked");
+            const geoids = Array.from(checkboxes).map(cb => cb.value);
+            const fieldlistid_name = document.getElementById("fieldlistName").value.trim();
+
+            if (geoids.length === 0) {
+                showToast("Please select at least one GeoID", true);
+                return;
+            }
+            if (!fieldlistid_name) {
+                showToast("Fieldlist name is required", true);
+                return;
+            }
+
+            const submitBtn = document.getElementById("submitBtn");
+            const submitBtnText = document.getElementById("submitBtnText");
+            const submitBtnSpinner = document.getElementById("submitBtnSpinner");
+            submitBtn.disabled = true;
+            submitBtnText.textContent = "Creating...";
+            submitBtnSpinner.classList.remove("d-none");
+
+            try {
+                const res = await fetch("http://localhost:5000/ingest", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ geoids, user_id, fieldlistid_name })
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.message || "Fieldlist created successfully", false);
+                    if (data.fieldListId) {
+                        showFieldlistResult(data.fieldListId);
+                    }
+                } else {
+                    showToast(data.error || "Error creating fieldlist", true);
+                }
+            } catch (err) {
+                showToast("Request failed: " + err.message, true);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtnText.textContent = "Create Fieldlist ID";
+                submitBtnSpinner.classList.add("d-none");
+            }
+        });
+
+        async function showFieldlistResult(fieldListId) {
+            document.getElementById("fieldListIdText").textContent = fieldListId;
+            document.getElementById("fieldlistResult").style.display = "block";
+
+            try {
+                const res = await fetch(`http://localhost:5000/link_fieldlistid?fieldlist_id=${fieldListId}`);
+                const data = await res.json();
+                if (res.ok && data.link) {
+                    const mapLinkText = document.getElementById("mapLinkText");
+                    mapLinkText.textContent = data.link;
+                    mapLinkText.href = data.link;
+                    document.getElementById("mapLinkSection").style.display = "block";
+                } else {
+                    showToast(data.error || "Failed to get map link", true);
+                }
+            } catch (err) {
+                showToast("Error fetching map link: " + err.message, true);
+            }
+        }
+
+        function copyFieldListId() {
+            const text = document.getElementById("fieldListIdText").textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                showToast("FieldListId copied!", false);
+            });
+        }
+
+        function copyMapLink() {
+            const text = document.getElementById("mapLinkText").textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                showToast("Map link copied!", false);
+            });
+        }
+
+        function showToast(message, isError) {
+            const toast = document.getElementById("toastMessage");
+            const toastBody = document.getElementById("toastBody");
+            const bootstrapToast = new bootstrap.Toast(toast, { delay: 3000 });
+            
+            toastBody.textContent = message;
+            toast.classList.remove("text-bg-primary", "text-bg-danger", "text-bg-success");
+            toast.classList.add(isError ? "text-bg-danger" : "text-bg-success");
+
+            bootstrapToast.show();
+        }
+
+        window.addEventListener("load", async () => {
+            loadGeoIDs();
+
+            const existingFieldListId = localStorage.getItem("last_fieldlist_id");
+            if (existingFieldListId) {
+                showFieldlistResult(existingFieldListId);
+            }
+        });
+    </script>
+</body>
+</html>

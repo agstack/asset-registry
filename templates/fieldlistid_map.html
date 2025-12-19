@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Field and Mask Viewer</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #e0eafc, #cfdef3);
+            height: 100vh;
+            overflow: hidden;
+        }
+        #map {
+            height: calc(100vh - 60px); /* Adjust for header height */
+            width: 100%;
+            position: absolute;
+            top: 60px; /* Height of header */
+            z-index: 1;
+        }
+        .header-container {
+            display: flex;
+            align-items: center;
+            padding: 10px 20px;
+            background-color: #f8f9fa;
+            height: 60px;
+            position: relative;
+            z-index: 2;
+        }
+        #logo {
+            width: 150px;
+            margin-right: 20px;
+        }
+        .map-heading {
+            font-size: 1.05rem;
+            font-weight: 500;
+            margin: 0;
+            color: #007bff;
+        }
+        #footer-text {
+            position: absolute;
+            bottom: 10px;
+            width: 100%;
+            text-align: center;
+            font-size: 15px;
+            color: #555;
+            z-index: 1000;
+            pointer-events: none;
+        }
+        .error {
+            color: red;
+            text-align: center;
+            margin: 10px 0;
+        }
+        .card {
+            max-width: 700px;
+            margin: auto;
+            margin-top: 20px;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            background-color: #fff;
+            z-index: 3;
+            position: relative;
+        }
+        .otp-form, .login-form, .facility-form {
+            margin-bottom: 20px;
+        }
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1055;
+        }
+        .debug-border {
+            border: 1px solid red;
+        }
+        /* Custom layer control styles */
+        .custom-layer-control {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            z-index: 1000;
+            display: none; /* Hidden by default */
+        }
+        .layer-control-btn {
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 8px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .layer-control-btn:hover {
+            background-color: #f8f9fa;
+        }
+        .layer-control-menu {
+            display: none;
+            position: absolute;
+            bottom: 40px;
+            left: 40px; /* Position to the right of the icon */
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 1001;
+            min-width: 140px;
+        }
+        .layer-control-menu.show {
+            display: block;
+        }
+        .layer-control-menu .dropdown-item {
+            font-size: 14px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+        }
+        .layer-control-menu .dropdown-item:hover {
+            background-color: #f0f0f0;
+        }
+        .layer-control-menu .bi-check {
+            margin-right: 8px;
+            color: #007bff;
+        }
+        .layer-control-menu .hidden {
+            visibility: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div class="header-container">
+        <img id="logo" src="./agstack-color.png" alt="Logo" />
+        <h2 class="map-heading">
+            Map for fieldListID: <span id="fieldlist_id">Loading...</span>
+        </h2>
+    </div>
+
+    <div class="card" id="authCard">
+        <div id="loginSection" class="login-form">
+            <div class="mb-3">
+                <label for="emailInput" class="form-label">Email</label>
+                <input type="email" class="form-control" id="emailInput" placeholder="Enter your email">
+            </div>
+            <div class="mb-3">
+                <label for="passwordInput" class="form-label">Password</label>
+                <input type="password" class="form-control" id="passwordInput" placeholder="Enter your password">
+            </div>
+            <button id="loginBtn" class="btn btn-primary mb-2">Login</button>
+        </div>
+        <div id="otpSection" class="otp-form" style="display: none;">
+            <button id="requestOtpBtn" class="btn btn-primary mb-2">Request OTP</button>
+            <div class="mb-3">
+                <label for="otpInput" class="form-label">Enter OTP</label>
+                <input type="text" class="form-control" id="otpInput" placeholder="Enter 6-digit OTP">
+            </div>
+            <button id="verifyOtpBtn" class="btn btn-success mb-2">Verify OTP</button>
+        </div>
+        <div id="facilitySection" class="facility-form" style="display: none;">
+            <div class="mb-3">
+                <label for="facilityInput" class="form-label">Enter Facility ID</label>
+                <input type="text" class="form-control" id="facilityInput" placeholder="Enter Facility ID">
+            </div>
+            <button id="viewFacilityBtn" class="btn btn-primary mb-2">View Facility</button>
+        </div>
+        <div id="error" class="error" style="display:none;"></div>
+    </div>
+
+    <div id="map"></div>
+    <div id="footer-text">Powered by Asset Registry</div>
+
+    <div class="custom-layer-control" id="layerControl">
+        <button class="layer-control-btn" id="layerControlBtn" title="Select View">
+            <i class="bi bi-layers"></i>
+        </button>
+        <div class="layer-control-menu" id="layerControlMenu">
+            <a class="dropdown-item" href="#" id="maskViewOption"><i class="bi bi-check"></i>Mask View</a>
+            <a class="dropdown-item" href="#" id="fieldViewOption"><i class="bi bi-check hidden"></i>Field View</a>
+            <a class="dropdown-item" href="#" id="facilityViewOption"><i class="bi bi-check hidden"></i>Facility View</a>
+        </div>
+    </div>
+
+    <div class="toast-container">
+        <div id="toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="15000">
+            <div class="toast-header">
+                <strong class="me-auto" id="toastTitle"></strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body" id="toastBody"></div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <!-- Terraformer for WKT parsing -->
+    <script src="https://unpkg.com/terraformer@1.0.12"></script>
+    <script src="https://unpkg.com/terraformer-wkt-parser@1.2.1/terraformer-wkt-parser.min.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const apiBaseUrl = 'http://localhost:5000';
+            const urlParams = new URLSearchParams(window.location.search);
+            const encodedFieldlistid = urlParams.get('fieldlistid');
+
+            const fieldlistIdSpan = document.getElementById('fieldlist_id');
+            const errorDiv = document.getElementById('error');
+            const toast = document.getElementById('toast');
+            const toastTitle = document.getElementById('toastTitle');
+            const toastBody = document.getElementById('toastBody');
+            let bootstrapToast = new bootstrap.Toast(toast);
+            const emailInput = document.getElementById('emailInput');
+            const passwordInput = document.getElementById('passwordInput');
+            const loginBtn = document.getElementById('loginBtn');
+            const requestOtpBtn = document.getElementById('requestOtpBtn');
+            const otpInput = document.getElementById('otpInput');
+            const verifyOtpBtn = document.getElementById('verifyOtpBtn');
+            const loginSection = document.getElementById('loginSection');
+            const otpSection = document.getElementById('otpSection');
+            const facilitySection = document.getElementById('facilitySection');
+            const authCard = document.getElementById('authCard');
+            const layerControl = document.getElementById('layerControl');
+            const layerControlBtn = document.getElementById('layerControlBtn');
+            const layerControlMenu = document.getElementById('layerControlMenu');
+            const maskViewOption = document.getElementById('maskViewOption');
+            const fieldViewOption = document.getElementById('fieldViewOption');
+            const facilityViewOption = document.getElementById('facilityViewOption');
+            const facilityInput = document.getElementById('facilityInput');
+            const viewFacilityBtn = document.getElementById('viewFacilityBtn');
+
+            let userRegistryId = null;
+            let accessToken = null;
+            let fieldlistid = null;
+            let maskLayerGroup = L.layerGroup(); // Layer group for mask view
+            let fieldLayerGroup = L.layerGroup(); // Layer group for field view
+            let facilityLayerGroup = L.layerGroup(); // Layer group for facility view
+            let isFieldViewAuthorized = false;
+            let isFacilityViewAuthorized = false; // Track facility view authorization
+            let currentView = 'mask'; // Track current view ('mask', 'field', or 'facility')
+            let lastFacilityId = null; // Store last entered facility ID
+
+            // Initialize Leaflet map with a default view
+            var map = L.map('map').setView([20, 77], 4); // Default to India coordinates
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '© OpenStreetMap contributors, © CartoDB',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(map);
+
+            // Show error message
+            function showError(message) {
+                errorDiv.textContent = message;
+                errorDiv.style.display = 'block';
+                map.setView([0, 0], 2); // Reset to a neutral view on error
+            }
+
+            // Show toast
+            function showToast(title, body, isSuccess = true) {
+                toastTitle.textContent = title;
+                toastBody.textContent = body;
+                toast.classList.add(isSuccess ? 'bg-success' : 'bg-danger', 'text-white');
+                toast.classList.remove(isSuccess ? 'bg-danger' : 'bg-success');
+                bootstrapToast.show();
+            }
+
+            // Clear specific layer group
+            function clearLayerGroup(layerGroup) {
+                layerGroup.clearLayers();
+            }
+
+            // Update checkbox indicators
+            function updateCheckboxes() {
+                const maskCheck = maskViewOption.querySelector('.bi-check');
+                const fieldCheck = fieldViewOption.querySelector('.bi-check');
+                const facilityCheck = facilityViewOption.querySelector('.bi-check');
+                if (currentView === 'mask') {
+                    maskCheck.classList.remove('hidden');
+                    fieldCheck.classList.add('hidden');
+                    facilityCheck.classList.add('hidden');
+                } else if (currentView === 'field') {
+                    maskCheck.classList.add('hidden');
+                    fieldCheck.classList.remove('hidden');
+                    facilityCheck.classList.add('hidden');
+                } else {
+                    maskCheck.classList.add('hidden');
+                    fieldCheck.classList.add('hidden');
+                    facilityCheck.classList.remove('hidden');
+                }
+            }
+
+            // Show OTP form
+            function showOtpForm(message) {
+                console.log('Showing OTP form:', message); // Debug log
+                authCard.style.display = 'block';
+                loginSection.style.display = 'none';
+                otpSection.style.display = 'block';
+                facilitySection.style.display = 'none';
+                requestOtpBtn.style.display = 'block';
+                otpInput.value = ''; // Clear OTP input
+                otpInput.focus(); // Focus on OTP input
+                showToast('Error', message, false);
+            }
+
+            // Show Facility Input form
+            function showFacilityForm() {
+                console.log('Showing Facility form'); // Debug log
+                authCard.style.display = 'block';
+                loginSection.style.display = 'none';
+                otpSection.style.display = 'none';
+                facilitySection.style.display = 'block';
+                facilityInput.value = lastFacilityId || ''; // Restore last entered ID
+                facilityInput.focus(); // Focus on facility input
+            }
+
+            // Hide all forms
+            function hideAllForms() {
+                console.log('Hiding all forms'); // Debug log
+                authCard.style.display = 'none';
+                loginSection.style.display = 'none';
+                otpSection.style.display = 'none';
+                facilitySection.style.display = 'none';
+                errorDiv.style.display = 'none';
+            }
+
+            // Toggle layer control menu
+            layerControlBtn.addEventListener('click', () => {
+                layerControlMenu.classList.toggle('show');
+            });
+
+            // Close menu when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!layerControl.contains(e.target)) {
+                    layerControlMenu.classList.remove('show');
+                }
+            });
+
+            // Decode fieldlistid
+            async function decodeFieldlistId() {
+                if (!encodedFieldlistid) {
+                    fieldlistIdSpan.textContent = 'N/A';
+                    showError('Encoded Field List ID is required in the URL.');
+                    showToast('Error', 'Encoded Field List ID is required in the URL.', false);
+                    return false;
+                }
+
+                // Display the encoded fieldlistid in the UI
+                fieldlistIdSpan.textContent = encodedFieldlistid;
+
+                try {
+                    const res = await fetch(`${apiBaseUrl}/decode_fieldlistid`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ encoded_fieldlistid: encodedFieldlistid })
+                    });
+                    const data = await res.json();
+                    if (res.status === 200 && data.message === 'FieldListId decoded successfully') {
+                        fieldlistid = data.fieldlistid;
+                        return true;
+                    } else {
+                        showError(data.message || 'Failed to decode Field List ID.');
+                        showToast('Error', data.message || 'Failed to decode Field List ID.', false);
+                        return false;
+                    }
+                } catch (error) {
+                    showError('Failed to decode Field List ID.');
+                    showToast('Error', 'Failed to decode Field List ID. Please check the server connection.', false);
+                    console.error('Decode FieldlistId Error:', error);
+                    return false;
+                }
+            }
+
+            // Initialize by decoding fieldlistid
+            const isDecoded = await decodeFieldlistId();
+            if (!isDecoded) return;
+
+            // Login handler
+            loginBtn.addEventListener('click', async () => {
+                const email = emailInput.value.trim();
+                const password = passwordInput.value.trim();
+                if (!email || !password) {
+                    showToast('Error', 'Email and password are required.', false);
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`${apiBaseUrl}/mask_login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password })
+                    });
+                    const data = await res.json();
+                    if (res.status === 200 && data.message === 'Login successful') {
+                        accessToken = data.access_token;
+                        userRegistryId = data.user_registry_id;
+                        showToast('Success', 'Login successful.');
+                        loginSection.style.display = 'none';
+                        authCard.style.display = 'none';
+                        layerControl.style.display = 'block'; // Show layer control after login
+                        await fetchMaskData(); // Load mask view by default after login
+                        map.addLayer(maskLayerGroup); // Show Mask View by default
+                        currentView = 'mask';
+                        updateCheckboxes();
+                    } else {
+                        showToast('Error', data.message || 'Login failed.', false);
+                    }
+                } catch (error) {
+                    showToast('Error', 'Failed to login. Please check the server connection.', false);
+                    console.error('Login Error:', error);
+                }
+            });
+
+            // Request OTP for Field
+            requestOtpBtn.addEventListener('click', async () => {
+                if (!userRegistryId) {
+                    showToast('Error', 'User not logged in.', false);
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`${apiBaseUrl}/request-otp-fieldlistid`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user_registry_id: userRegistryId, field_list_id: fieldlistid })
+                    });
+                    const data = await res.json();
+                    showToast(data.status === 'success' ? 'Success' : 'Error', data.message, data.status === 'success');
+                    if (data.status === 'success') {
+                        otpInput.value = ''; // Clear OTP input
+                        otpSection.style.display = 'block';
+                        requestOtpBtn.style.display = 'block'; // Ensure Request OTP button is visible
+                        otpInput.focus(); // Focus on OTP input
+                    }
+                } catch (error) {
+                    showToast('Error', 'Failed to request OTP. Please check the server connection.', false);
+                    console.error('Request OTP Error:', error);
+                }
+            });
+
+            // Verify OTP for Field
+            verifyOtpBtn.addEventListener('click', async () => {
+                const otp = otpInput.value.trim();
+                if (!otp || !userRegistryId) {
+                    showToast('Error', 'OTP required and user must be logged in.', false);
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`${apiBaseUrl}/verify-otp-fieldlistid`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user_registry_id: userRegistryId, field_list_id: fieldlistid, otp })
+                    });
+                    const data = await res.json();
+                    console.log('Verify OTP Response:', data); // Debug log
+                    showToast(data.status === 'success' ? 'Success' : 'Error', data.message, data.status === 'success');
+
+                    if (data.status === 'success') {
+                        isFieldViewAuthorized = true;
+                        await fetchFieldData();
+                        hideAllForms(); // Hide all forms
+                        map.removeLayer(maskLayerGroup); // Hide Mask View
+                        map.removeLayer(facilityLayerGroup); // Hide Facility View
+                        map.addLayer(fieldLayerGroup); // Show Field View
+                        currentView = 'field';
+                        updateCheckboxes();
+                        layerControlMenu.classList.remove('show'); // Close menu
+                    } else {
+                        // Handle OTP expiration or invalid OTP
+                        isFieldViewAuthorized = false; // Reset authorization
+                        const message = data.message.toLowerCase().includes('expired') 
+                            ? 'OTP expired. Please request a new OTP.' 
+                            : 'Invalid OTP. Please try again or request a new OTP.';
+                        showOtpForm(message);
+                    }
+                } catch (error) {
+                    showToast('Error', 'Failed to verify OTP. Please check the server connection.', false);
+                    console.error('Verify OTP Error:', error);
+                    isFieldViewAuthorized = false;
+                    showOtpForm('Failed to verify OTP. Please request a new OTP.');
+                }
+            });
+
+            // Fetch and display facility data on map
+            async function fetchFacilityData(facilityid) {
+                clearLayerGroup(facilityLayerGroup); // Clear existing facility layers
+                try {
+                    const res = await fetch(`${apiBaseUrl}/getWKT/facility/${facilityid}`, {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` }
+                    });
+                    const data = await res.json();
+                    console.log('Facility Data Response:', data); // Debug log
+                    if (res.status === 404 || data.error) {
+                        showError(data.error || 'Facility not found');
+                        showToast('Error', data.error || 'Facility not found', false);
+                        return;
+                    }
+
+                    try {
+                        let geojson = Terraformer.WKT.parse(data.wkt);
+                        var layer = L.geoJSON(geojson, {
+                            style: { color: '#ff5733', weight: 2, opacity: 0.8, fillOpacity: 0.2 }
+                        }).bindPopup(`Facility: ${data.facility_name}<br>ID: ${data.facilityid}<br>User ID: ${data.user_id}<br>GeoID: ${data.geoid}`);
+                        facilityLayerGroup.addLayer(layer);
+                        const bounds = layer.getBounds();
+                        map.fitBounds(bounds, { padding: [50, 50] });
+                        map.invalidateSize();
+                        showToast('Success', 'Facility view loaded successfully.');
+                    } catch (err) {
+                        console.error('WKT Parse Error for facility:', data, err);
+                        showError('Invalid facility geometry');
+                        showToast('Error', 'Invalid facility geometry', false);
+                        L.marker([20, 77]).addTo(map).bindPopup('Invalid facility geometry').openPopup();
+                    }
+                } catch (error) {
+                    showError('Failed to load facility data');
+                    showToast('Error', 'Failed to load facility data. Please check the server connection.', false);
+                    console.error('Fetch Facility Data Error:', error);
+                }
+            }
+
+            // View Facility button handler
+            viewFacilityBtn.addEventListener('click', async () => {
+                const facilityid = facilityInput.value.trim();
+                if (!facilityid) {
+                    showToast('Error', 'Please enter a facility ID.', false);
+                    return;
+                }
+                isFacilityViewAuthorized = true;
+                lastFacilityId = facilityid; // Store the entered facility ID
+                hideAllForms(); // Hide all forms
+                map.removeLayer(maskLayerGroup); // Hide Mask View
+                map.removeLayer(fieldLayerGroup); // Hide Field View
+                await fetchFacilityData(facilityid); // Load Facility View
+                map.addLayer(facilityLayerGroup); // Show Facility View
+                currentView = 'facility';
+                updateCheckboxes();
+            });
+
+            // Layer control menu options
+            maskViewOption.addEventListener('click', async (e) => {
+                e.preventDefault();
+                console.log('Switching to Mask View'); // Debug log
+                hideAllForms(); // Hide all forms
+                map.removeLayer(fieldLayerGroup); // Hide Field View
+                map.removeLayer(facilityLayerGroup); // Hide Facility View
+                await fetchMaskData(); // Always reload Mask View to ensure data
+                map.addLayer(maskLayerGroup); // Show Mask View
+                currentView = 'mask';
+                updateCheckboxes();
+                layerControlMenu.classList.remove('show'); // Close menu
+            });
+
+            fieldViewOption.addEventListener('click', async (e) => {
+                e.preventDefault();
+                console.log('Switching to Field View, isFieldViewAuthorized:', isFieldViewAuthorized); // Debug log
+                if (!isFieldViewAuthorized) {
+                    showOtpForm('Please verify OTP to access Field View.');
+                    map.removeLayer(fieldLayerGroup); // Ensure Field View is hidden
+                    map.removeLayer(facilityLayerGroup); // Hide Facility View
+                    if (!map.hasLayer(maskLayerGroup)) {
+                        await fetchMaskData(); // Reload Mask View if not visible
+                        map.addLayer(maskLayerGroup);
+                        currentView = 'mask';
+                        updateCheckboxes();
+                    }
+                } else {
+                    hideAllForms(); // Hide all forms
+                    map.removeLayer(maskLayerGroup); // Hide Mask View
+                    map.removeLayer(facilityLayerGroup); // Hide Facility View
+                    await fetchFieldData(); // Always reload Field View to ensure data
+                    map.addLayer(fieldLayerGroup); // Show Field View
+                    currentView = 'field';
+                    updateCheckboxes();
+                }
+                layerControlMenu.classList.remove('show'); // Close menu
+            });
+
+            facilityViewOption.addEventListener('click', async (e) => {
+                e.preventDefault();
+                console.log('Switching to Facility View'); // Debug log
+                showFacilityForm(); // Show facility input form
+                map.removeLayer(maskLayerGroup); // Hide Mask View
+                map.removeLayer(fieldLayerGroup); // Hide Field View
+                if (isFacilityViewAuthorized && lastFacilityId) {
+                    await fetchFacilityData(lastFacilityId); // Load last entered facility
+                    map.addLayer(facilityLayerGroup); // Show Facility View
+                    currentView = 'facility';
+                    updateCheckboxes();
+                } else {
+                    clearLayerGroup(facilityLayerGroup); // Clear facility layer if no ID entered
+                    currentView = 'facility';
+                    updateCheckboxes();
+                }
+                layerControlMenu.classList.remove('show'); // Close menu
+            });
+
+            // Fetch and display mask data on map (default view)
+            async function fetchMaskData() {
+                clearLayerGroup(maskLayerGroup); // Clear existing mask layers
+                try {
+                    const res = await fetch(`${apiBaseUrl}/getWKT/mask/${fieldlistid}`);
+                    const data = await res.json();
+                    if (!data.cells || data.cells.length === 0) {
+                        showError('No valid polygons found');
+                        showToast('Error', 'No valid polygons found', false);
+                        return;
+                    }
+
+                    var bounds = [];
+                    data.cells.forEach(cell => {
+                        try {
+                            // Add public polygons (dashed outline, transparent fill)
+                            var polygonLayer = L.geoJSON(cell.geometry, {
+                                style: { color: '#0077ff', weight: 2, opacity: 0.7, dashArray: '5, 5', fillOpacity: 0 }
+                            });
+                            maskLayerGroup.addLayer(polygonLayer);
+                            bounds.push(polygonLayer.getBounds());
+                        } catch (err) {
+                            console.error('GeoJSON Parse Error for cell:', cell, err);
+                        }
+                    });
+
+                    if (bounds.length > 0) {
+                        var groupBounds = bounds[0];
+                        bounds.forEach(b => groupBounds.extend(b));
+                        map.fitBounds(groupBounds, { padding: [50, 50] });
+                    } else {
+                        showError('No valid polygons to display');
+                        showToast('Error', 'No valid polygons to display', false);
+                        L.marker([20, 77]).addTo(map).bindPopup('No valid polygons found').openPopup();
+                    }
+                    map.invalidateSize();
+                    showToast('Success', 'Mask view loaded successfully.');
+                } catch (error) {
+                    showError('Failed to load mask data');
+                    showToast('Error', 'Failed to load mask data. Please check the server connection.', false);
+                    console.error('Fetch Mask Data Error:', error);
+                }
+            }
+
+            // Fetch and display field data on map
+            async function fetchFieldData() {
+                clearLayerGroup(fieldLayerGroup); // Clear existing field layers
+                try {
+                    const res = await fetch(`${apiBaseUrl}/getWKT/field/${fieldlistid}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user_registry_id: userRegistryId })
+                    });
+                    const data = await res.json();
+                    console.log('Field Data Response:', data); // Debug log
+                    if (data.status === 'error') {
+                        showError(data.message);
+                        showToast('Error', data.message, false);
+                        if (data.message.toLowerCase().includes('expired') || data.message.toLowerCase().includes('invalid')) {
+                            isFieldViewAuthorized = false;
+                            showOtpForm(data.message.toLowerCase().includes('expired') 
+                                ? 'OTP expired. Please request a new OTP.' 
+                                : 'Invalid OTP. Please try again or request a new OTP.');
+                            map.removeLayer(fieldLayerGroup);
+                            if (!map.hasLayer(maskLayerGroup)) {
+                                await fetchMaskData();
+                                map.addLayer(maskLayerGroup);
+                                currentView = 'mask';
+                                updateCheckboxes();
+                            }
+                        }
+                        return;
+                    }
+
+                    if (!data.fields || data.fields.length === 0) {
+                        showError('No fields found');
+                        showToast('Error', 'No fields found', false);
+                        return;
+                    }
+
+                    var bounds = [];
+                    data.fields.forEach(field => {
+                        try {
+                            let geojson = Terraformer.WKT.parse(field.wkt);
+                            var layer = L.geoJSON(geojson, {
+                                style: { color: '#007bff', weight: 2, opacity: 0.8 }
+                            });
+                            fieldLayerGroup.addLayer(layer);
+                            bounds.push(layer.getBounds());
+                        } catch (err) {
+                            console.error('WKT Parse Error for field:', field, err);
+                        }
+                    });
+
+                    if (bounds.length > 0) {
+                        var groupBounds = bounds[0];
+                        bounds.forEach(b => groupBounds.extend(b));
+                        map.fitBounds(groupBounds, { padding: [50, 50] });
+                    } else {
+                        showError('No valid polygons to display');
+                        showToast('Error', 'No valid polygons to display', false);
+                        L.marker([20, 77]).addTo(map).bindPopup('No valid polygons found').openPopup(); // Fallback marker
+                    }
+                    map.invalidateSize();
+                    showToast('Success', 'Field view loaded successfully.');
+                } catch (error) {
+                    showError('Failed to load field data');
+                    showToast('Error', 'Failed to load field data. Please check the server connection.', false);
+                    console.error('Fetch Field Data Error:', error);
+                    isFieldViewAuthorized = false;
+                    showOtpForm('Failed to load field data. Please request a new OTP.');
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+<nav class="navbar navbar-expand-lg navbar-light bg-white">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-bold text-primary" href="/create_fieldlistid">Terrapipe</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" 
+            data-bs-target="#navbarNav" aria-controls="navbarNav" 
+            aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav ms-auto" id="navLinks">
+        <!-- Links will be inserted dynamically -->
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<script>
+  function updateNavbar() {
+    const navLinks = document.getElementById("navLinks");
+    const userId = localStorage.getItem("user_registry_id");
+    navLinks.innerHTML = ""; // clear old links
+
+    if (userId) {
+      // Logged in → show dashboard links
+      navLinks.innerHTML = `
+        <li class="nav-item">
+          <a class="nav-link" href="/create_fieldlistid">Create FieldlistIDs</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/fildlist_page">Show FieldlistIDs</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link text-danger" href="#" onclick="logout()">Logout</a>
+        </li>
+      `;
+      // If user is on /login or /register → redirect to /create_regionlistid
+      if (["/login_page", "/register"].includes(window.location.pathname)) {
+        window.location.href = "/create_fieldlistid";
+      }
+    } else {
+      // Not logged in → show login/register
+      navLinks.innerHTML = `
+        <li class="nav-item">
+          <a class="nav-link" href="/login_page">Login</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/register">Register</a>
+        </li>
+      `;
+    }
+  }
+
+  function logout() {
+    localStorage.clear();
+    window.location.href = "/login_page";
+  }
+
+  // Run on page load
+  updateNavbar();
+</script>
