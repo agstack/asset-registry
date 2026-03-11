@@ -8,7 +8,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+#CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+#CORS(app, supports_credentials=True, origins=["https://asset-registry.agstack.org"])
+CORS(app, resources={r"/*": {"origins": "*"}})
+
 app.config.from_object(os.getenv('APP_SETTINGS'))
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['STATIC_FOLDER'] = 'static'

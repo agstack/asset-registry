@@ -1,6 +1,6 @@
 import json
 import requests
-from flask import jsonify, request, make_response
+from flask import jsonify, request, make_response, send_from_directory
 from flask_migrate import Migrate
 from dbms import app, db
 from geoid_list.geoid_list import list_bp
@@ -183,8 +183,7 @@ def register_field_boundary(current_user_id):
             }
 
             if return_s2_indices:
-                s2_index = data.get('s2_index') or "8,13"
-                print(f"s2_index======== {s2_index}")
+                s2_index = data.get('s2_index')
                 if s2_index:
                     s2_index_to_fetch = [int(i) for i in s2_index.split(',')]
                     s2_indexes_to_remove = Utils.get_s2_indexes_to_remove(s2_index_to_fetch)
@@ -233,7 +232,7 @@ def register_field_boundary(current_user_id):
             }
 
             if return_s2_indices:
-                s2_index = data.get('s2_index') or "8,13"
+                s2_index = data.get('s2_index')
                 if s2_index:
                     s2_index_to_fetch = [int(i) for i in s2_index.split(',')]
                     s2_indexes_to_remove = Utils.get_s2_indexes_to_remove(s2_index_to_fetch)
@@ -258,12 +257,213 @@ def register_field_boundary(current_user_id):
         }), 400
 
 
+"""#old working code
+@app.route('/register-field-boundary', methods=['POST'])
+@Utils.token_required_
+def register_field_boundary(current_user_id):
+    try:
+        data = json.loads(request.data.decode('utf-8'))
+        field_wkt = data.get('wkt')
+        threshold = data.get('threshold') or 95
+        resolution_level = 20
+        field_boundary_geo_json = Utils.get_geo_json(field_wkt)
+
+        boundary_type = "manual"
+        # check if request from automated system
+        if request.headers.get('AUTOMATED-FIELD') is not None:
+            automated_field = bool(int(request.headers.get('AUTOMATED-FIELD')))
+            if automated_field:
+                boundary_type = "automated"
+        # set lat lng from geoJson first coordinate.
+        lat = field_boundary_geo_json['geometry']['coordinates'][0][0][1]
+        lng = field_boundary_geo_json['geometry']['coordinates'][0][0][0]
+        p = Point([lng, lat])
+        country = Utils.get_country_from_point(p)
+        are_in_acres = Utils.get_are_in_acres(field_wkt)
+        if are_in_acres > 1000:
+            return make_response(jsonify({
+                "message": f"Cannot register a field with Area greater than 1000 acres",
+                "Field area (acres)": are_in_acres
+            }), 200)
+
+        s2_index = data.get('s2_index')
+        if s2_index:
+            s2_index_to_fetch = [int(i) for i in (data.get('s2_index')).split(',')]
+            s2_indexes_to_remove = Utils.get_s2_indexes_to_remove(s2_index_to_fetch)
+
+        # get the Different resolution level indices
+        # list against a key (e.g. 13) is a list of tokens(hex encoded version of the cell id)
+        indices = {8: S2Service.wkt_to_cell_tokens(field_wkt, 8),
+                   13: S2Service.wkt_to_cell_tokens(field_wkt, 13),
+                   15: S2Service.wkt_to_cell_tokens(field_wkt, 15),
+                   18: S2Service.wkt_to_cell_tokens(field_wkt, 18),
+                   19: S2Service.wkt_to_cell_tokens(field_wkt, 19),
+                   20: S2Service.wkt_to_cell_tokens(field_wkt, 20),
+                   }
+
+        # fetching the new s2 cell tokens records for different Resolution Levels, to be added in the database
+        records_list_s2_cell_tokens_middle_table_dict = Utils.records_s2_cell_tokens(indices)
+        # generate the geo_id only for `s2_index__l13_list`
+        geo_id = Utils.generate_geo_id(indices[13])
+        geo_id_l20 = Utils.generate_geo_id(indices[20])
+        # lookup the database to see if geo id already exists
+        geo_id_exists_wkt = Utils.lookup_geo_ids(geo_id)
+        # if geo id not registered, register it in the database
+        if not geo_id_exists_wkt:
+            geo_data_to_return = None
+            geo_data = Utils.register_field_boundary(current_user_id , geo_id, indices, records_list_s2_cell_tokens_middle_table_dict,
+                                                     field_wkt, country, boundary_type)
+            if s2_index and s2_indexes_to_remove != -1:
+                geo_data_to_return = Utils.get_specific_s2_index_geo_data(geo_data, s2_indexes_to_remove)
+            return jsonify({
+                "message": "Field Boundary registered successfully.",
+                "Geo Id": geo_id,
+                "S2 Cell Tokens": geo_data_to_return,
+                "Geo JSON": field_boundary_geo_json
+            })
+        else:
+            # check for the percentage match for the given threshold for L20
+            # get the L20 indices
+            # s2_index__L20_list is a list of tokens(hex encoded version of the cell id)
+            s2_index_to_check = indices[20]
+            # fetch geo ids for tokens and checking for the percentage match
+            matched_geo_ids = Utils.fetch_geo_ids_for_cell_tokens(s2_index_to_check, "")
+            percentage_matched_geo_ids = Utils.check_percentage_match(matched_geo_ids, s2_index_to_check,
+                                                                      resolution_level,
+                                                                      threshold)
+            if len(percentage_matched_geo_ids) > 0:
+                return jsonify({
+                    'message': 'Threshold matched for already registered Field Boundary(ies)',
+                    'matched geo ids': percentage_matched_geo_ids
+                }), 400
+
+            geo_id_exists_wkt_l20 = Utils.lookup_geo_ids(geo_id_l20)
+            if not geo_id_exists_wkt_l20:
+                geo_data_to_return = None
+                geo_data = Utils.register_field_boundary(current_user_id , geo_id_l20, indices,
+                                                         records_list_s2_cell_tokens_middle_table_dict,
+                                                         field_wkt, country, boundary_type)
+                if s2_index and s2_indexes_to_remove != -1:
+                    geo_data_to_return = Utils.get_specific_s2_index_geo_data(geo_data, s2_indexes_to_remove)
+                return jsonify({
+                    "message": "Field Boundary registered successfully.",
+                    "Geo Id": geo_id_l20,
+                    "S2 Cell Tokens": geo_data_to_return,
+                    "Geo JSON": field_boundary_geo_json
+                })
+            else:
+                return make_response(jsonify({
+                    "message": f"Field Boundary already registered.",
+                    "Geo Id": geo_id_l20,
+                    "Geo JSON requested": field_boundary_geo_json,
+                    "Geo JSON registered": Utils.get_geo_json(geo_id_exists_wkt_l20)
+                }), 200)
+    except Exception as e:
+        # noinspection PyPackageRequirements
+        return jsonify({
+            'message': 'Register Field Boundary Error',
+            'error': f'{e}'
+        }), 400
+
+"""
+
+# @app.route('/register-field-boundary', methods=['POST'])
+# @Utils.token_required
+# def register_field_boundary(current_user_id):
+#     """
+#     Registering a field boundary against a Geo Id
+#     """
+#     try:
+#         data = json.loads(request.data.decode('utf-8'))
+#         field_wkt = data.get('wkt')
+#         threshold = data.get('threshold') or 95
+#         resolution_level = 20
+#         field_boundary_geo_json = Utils.get_geo_json(field_wkt)
+
+#         boundary_type = "manual"
+#         if request.headers.get('AUTOMATED-FIELD') is not None:
+#             automated_field = bool(int(request.headers.get('AUTOMATED-FIELD')))
+#             if automated_field:
+#                 boundary_type = "automated"
+#         lat = field_boundary_geo_json['geometry']['coordinates'][0][0][1]
+#         lng = field_boundary_geo_json['geometry']['coordinates'][0][0][0]
+#         p = Point([lng, lat])
+#         country = Utils.get_country_from_point(p)
+#         are_in_acres = Utils.get_are_in_acres(field_wkt)
+#         if are_in_acres > 1000:
+#             return make_response(jsonify({
+#                 "message": f"Cannot register a field with Area greater than 1000 acres",
+#                 "Field area (acres)": are_in_acres
+#             }), 200)
+
+#         s2_index = data.get('s2_index')
+#         if s2_index:
+#             s2_index_to_fetch = [int(i) for i in (data.get('s2_index')).split(',')]
+#             s2_indexes_to_remove = Utils.get_s2_indexes_to_remove(s2_index_to_fetch)
+
+#         indices = {
+#             8: S2Service.wkt_to_cell_tokens(field_wkt, 8),
+#             13: S2Service.wkt_to_cell_tokens(field_wkt, 13),
+#             15: S2Service.wkt_to_cell_tokens(field_wkt, 15),
+#             18: S2Service.wkt_to_cell_tokens(field_wkt, 18),
+#             19: S2Service.wkt_to_cell_tokens(field_wkt, 19),
+#             20: S2Service.wkt_to_cell_tokens(field_wkt, 20),
+#         }
+
+#         records_list_s2_cell_tokens_middle_table_dict = Utils.records_s2_cell_tokens(indices)
+#         geo_id = Utils.generate_geo_id(indices[13])
+#         geo_id_l20 = Utils.generate_geo_id(indices[20])
+#         geo_id_exists_wkt = Utils.lookup_geo_ids(geo_id)
+#         if not geo_id_exists_wkt:
+#             geo_data_to_return = None
+#             geo_data = Utils.register_field_boundary(current_user_id, geo_id, indices, records_list_s2_cell_tokens_middle_table_dict, field_wkt, country, boundary_type)
+#             if s2_index and s2_indexes_to_remove != -1:
+#                 geo_data_to_return = Utils.get_specific_s2_index_geo_data(geo_data, s2_indexes_to_remove)
+#             return jsonify({
+#                 "message": "Field Boundary registered successfully.",
+#                 "Geo Id": geo_id,
+#                 "S2 Cell Tokens": geo_data_to_return,
+#                 "Geo JSON": field_boundary_geo_json
+#             })
+#         else:
+#             s2_index_to_check = indices[20]
+#             matched_geo_ids = Utils.fetch_geo_ids_for_cell_tokens(s2_index_to_check, "")
+#             percentage_matched_geo_ids = Utils.check_percentage_match(matched_geo_ids, s2_index_to_check, resolution_level, threshold)
+#             if len(percentage_matched_geo_ids) > 0:
+#                 return jsonify({
+#                     'message': 'Threshold matched for already registered Field Boundary(ies)',
+#                     'matched geo ids': percentage_matched_geo_ids
+#                 }), 400
+
+#             geo_id_exists_wkt_l20 = Utils.lookup_geo_ids(geo_id_l20)
+#             if not geo_id_exists_wkt_l20:
+#                 geo_data_to_return = None
+#                 geo_data = Utils.register_field_boundary(current_user_id, geo_id_l20, indices, records_list_s2_cell_tokens_middle_table_dict, field_wkt, country, boundary_type)
+#                 if s2_index and s2_indexes_to_remove != -1:
+#                     geo_data_to_return = Utils.get_specific_s2_index_geo_data(geo_data, s2_indexes_to_remove)
+#                 return jsonify({
+#                     "message": "Field Boundary registered successfully.",
+#                     "Geo Id": geo_id_l20,
+#                     "S2 Cell Tokens": geo_data_to_return,
+#                     "Geo JSON": field_boundary_geo_json
+#                 })
+#             else:
+#                 return make_response(jsonify({
+#                     "message": f"Field Boundary already registered.",
+#                     "Geo Id": geo_id_l20,
+#                     "Geo JSON requested": field_boundary_geo_json,
+#                     "Geo JSON registered": Utils.get_geo_json(geo_id_exists_wkt_l20)
+#                 }), 200)
+#     except Exception as e:
+#         return jsonify({
+#             'message': 'Register Field Boundary Error',
+#             'error': str(e)
+#         }), 400
+
+"""
 @app.route('/register-field-boundaries-geojson', methods=['POST'])
 @Utils.token_required_
 def register_field_boundaries_geojson(current_user_id):
-    """
-    Bulk registration of multiple field boundaries from GeoJSON FeatureCollection
-    """
     try:
         data = json.loads(request.data.decode('utf-8'))
         if 'type' not in data or data['type'] != 'FeatureCollection' or 'features' not in data:
@@ -346,6 +546,170 @@ def register_field_boundaries_geojson(current_user_id):
                 geo_id = Utils.generate_geo_id(indices[13])
                 geo_id_l20 = Utils.generate_geo_id(indices[20])
                 geo_id_exists_wkt = Utils.lookup_geo_ids(geo_id)
+                if not geo_id_exists_wkt:
+                    geo_data_to_return = None
+                    geo_data = Utils.register_field_boundary(current_user_id , geo_id, indices, records_list_s2_cell_tokens_middle_table_dict,
+                                                     field_wkt, country, boundary_type)
+                    if s2_index and s2_indexes_to_remove != -1:
+                        geo_data_to_return = Utils.get_specific_s2_index_geo_data(geo_data, s2_indexes_to_remove)
+                    
+                    results.append({
+                        "status": "created",
+                        "message": "Field Boundary registered successfully",
+                        "geo_id": geo_id,
+                        "s2_cell_tokens": geo_data_to_return,
+                        "geo_json": field_boundary_geo_json
+                    })
+                    continue
+
+                s2_index_to_check = indices[20]
+                matched_geo_ids = Utils.fetch_geo_ids_for_cell_tokens(s2_index_to_check, "")
+                percentage_matched_geo_ids = Utils.check_percentage_match(matched_geo_ids, s2_index_to_check,
+                                                                        resolution_level, threshold)
+                
+                if len(percentage_matched_geo_ids) > 0:
+                    results.append({
+                        "status": "exists",
+                        "message": "Threshold matched for already registered Field Boundary(ies)",
+                        "matched_geo_ids": percentage_matched_geo_ids,
+                        "geo_json": field_boundary_geo_json
+                    })
+                    continue
+
+                geo_id_exists_wkt_l20 = Utils.lookup_geo_ids(geo_id_l20)
+                if not geo_id_exists_wkt_l20:
+                    geo_data_to_return = None
+                    geo_data = Utils.register_field_boundary(current_user_id,geo_id_l20, indices,
+                                                           records_list_s2_cell_tokens_middle_table_dict,
+                                                           field_wkt, country, boundary_type)
+                    if s2_index and s2_indexes_to_remove != -1:
+                        geo_data_to_return = Utils.get_specific_s2_index_geo_data(geo_data, s2_indexes_to_remove)
+                    
+                    results.append({
+                        "status": "created",
+                        "message": "Field Boundary registered successfully",
+                        "geo_id": geo_id_l20,
+                        "s2_cell_tokens": geo_data_to_return,
+                        "geo_json": field_boundary_geo_json
+                    })
+                else:
+                    results.append({
+                        "status": "exists",
+                        "message": "Field Boundary already registered",
+                        "geo_id": geo_id_l20,
+                        "geo_json_requested": field_boundary_geo_json,
+                        "geo_json_registered": Utils.get_geo_json(geo_id_exists_wkt_l20)
+                    })
+
+            except Exception as field_error:
+                results.append({
+                    "status": "error",
+                    "message": str(field_error),
+                    "geo_json": field_boundary_geo_json
+                })
+
+        return jsonify({
+            "message": "Bulk registration completed",
+            "results": results
+        })
+
+    except Exception as e:
+        return jsonify({
+            'message': 'Bulk Register Field Boundaries Error',
+            'error': str(e)
+        }), 400
+"""
+
+@app.route('/register-field-boundaries-geojson', methods=['POST'])
+@Utils.token_required_
+def register_field_boundaries_geojson(current_user_id):
+    try:
+        # 1. Check if a file was uploaded (e.g., via Swagger UI)
+        if 'file' in request.files:
+            file = request.files.get('file')
+            data = json.loads(file.read().decode('utf-8'))
+        # 2. Fallback to raw JSON payload (for backwards compatibility with your other app)
+        elif request.data:
+            data = json.loads(request.data.decode('utf-8'))
+        else:
+            return jsonify({
+                'message': 'No GeoJSON file or payload provided'
+            }), 400
+
+        if 'type' not in data or data['type'] != 'FeatureCollection' or 'features' not in data:
+            return jsonify({
+                'message': 'Invalid GeoJSON FeatureCollection format'
+            }), 400
+
+        threshold = data.get('threshold', 95)
+        resolution_level = 20
+        results = []
+
+        boundary_type = "manual"
+        if request.headers.get('AUTOMATED-FIELD') is not None:
+            automated_field = bool(int(request.headers.get('AUTOMATED-FIELD')))
+            if automated_field:
+                boundary_type = "automated"        
+
+        for feature in data['features']:
+            try:
+                # Convert GeoJSON to WKT
+                field_wkt = Utils.geojson_to_wkt(feature)
+                field_boundary_geo_json = feature
+                geometry_type = feature['geometry']['type']
+
+                # set lat lng based on geometry type
+                if geometry_type == 'Point':
+                    lat = feature['geometry']['coordinates'][1]
+                    lng = feature['geometry']['coordinates'][0]
+                    indices = {
+                        8: S2Service.wkt_to_cell_tokens(field_wkt, 8, point=True),
+                        13: S2Service.wkt_to_cell_tokens(field_wkt, 13, point=True),
+                        15: S2Service.wkt_to_cell_tokens(field_wkt, 15, point=True),
+                        18: S2Service.wkt_to_cell_tokens(field_wkt, 18, point=True),
+                        19: S2Service.wkt_to_cell_tokens(field_wkt, 19, point=True),
+                        20: S2Service.wkt_to_cell_tokens(field_wkt, 20, point=True),
+                        30: S2Service.wkt_to_cell_tokens(field_wkt, 30, point=True)
+                    }
+                else:  # Polygon
+                    lat = feature['geometry']['coordinates'][0][0][1]
+                    lng = feature['geometry']['coordinates'][0][0][0]
+                    indices = {
+                        8: S2Service.wkt_to_cell_tokens(field_wkt, 8),
+                        13: S2Service.wkt_to_cell_tokens(field_wkt, 13),
+                        15: S2Service.wkt_to_cell_tokens(field_wkt, 15),
+                        18: S2Service.wkt_to_cell_tokens(field_wkt, 18),
+                        19: S2Service.wkt_to_cell_tokens(field_wkt, 19),
+                        20: S2Service.wkt_to_cell_tokens(field_wkt, 20)
+                    }
+
+                p = Point([lng, lat])
+                country = Utils.get_country_from_point(p)
+                print("Country:", country)
+
+                # Skip area check for points
+                if geometry_type != 'Point':
+                    are_in_acres = Utils.get_are_in_acres(field_wkt)
+                    if are_in_acres > 1000:
+                        results.append({
+                            "status": "skipped",
+                            "message": f"Cannot register a field with Area greater than 1000 acres",
+                            "field_area_acres": are_in_acres,
+                            "geo_json": field_boundary_geo_json
+                        })
+                        continue
+
+                s2_index = feature.get('properties', {}).get('s2_index')
+                s2_indexes_to_remove = None
+                if s2_index:
+                    s2_index_to_fetch = [int(i) for i in s2_index.split(',')]
+                    s2_indexes_to_remove = Utils.get_s2_indexes_to_remove(s2_index_to_fetch)
+
+                records_list_s2_cell_tokens_middle_table_dict = Utils.records_s2_cell_tokens(indices)
+                geo_id = Utils.generate_geo_id(indices[13])
+                geo_id_l20 = Utils.generate_geo_id(indices[20])
+                geo_id_exists_wkt = Utils.lookup_geo_ids(geo_id)
+                
                 if not geo_id_exists_wkt:
                     geo_data_to_return = None
                     geo_data = Utils.register_field_boundary(current_user_id , geo_id, indices, records_list_s2_cell_tokens_middle_table_dict,
@@ -882,6 +1246,18 @@ def fetch_field_centroid(geo_id):
             'error': f'{e}'
         }), 400
 
+# swagger doc code 
+SWAGGER_DIR = '/home/agro_dev/webapps/asset-registry/asset_reg_swagger_doc'
+
+# Route to serve the files inside the folder (CSS, JS, JSON)
+@app.route('/swagger/<path:path>')
+def send_swagger_files(path):
+    return send_from_directory(SWAGGER_DIR, path)
+
+# Route to serve the main index.html when visiting /swagger/
+@app.route('/swagger/')
+def send_swagger_index():
+    return send_from_directory(SWAGGER_DIR, 'index.html')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
