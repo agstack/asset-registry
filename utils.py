@@ -22,8 +22,139 @@ from dbms.models.cellsGeosMiddleModel import CellsGeosMiddle
 from sqlalchemy import func
 from datetime import date, timedelta
 import geopandas as gpd
+from sqlalchemy import create_engine, text
+import datetime
 
 localStorage = localStoragePy('asset-registry', 'text')
+
+NODE6_DB_URL = "postgresql://terrapipe:pass1234%21@66.220.3.87:5432/terrapipe_be"
+node6_engine = create_engine(NODE6_DB_URL)
+
+def insert_user_field_by_registry_id(user_registry_id, geo_id, field_name=None):
+    with node6_engine.begin() as conn6:
+
+        # 1. Look up internal user ID from registry ID
+        user_row = conn6.execute(
+            text("SELECT id FROM users WHERE user_registry_id = :urid"),
+            {"urid": str(user_registry_id)}
+        ).fetchone()
+
+        # If user not found → don't fail, just skip user-field linking
+        if not user_row:
+            user_id = None
+        else:
+            user_id = user_row[0]
+
+        now = datetime.datetime.utcnow()
+
+        # 2. Insert field if missing
+        field_id_result = conn6.execute(
+            text("""
+                WITH ins AS (
+                    INSERT INTO fields (geo_id, created_at, updated_at)
+                    SELECT :geo_id, :now, :now
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM fields WHERE geo_id = :geo_id
+                    )
+                    RETURNING id
+                )
+                SELECT id FROM ins
+                UNION
+                SELECT id FROM fields WHERE geo_id = :geo_id
+                LIMIT 1;
+            """),
+            {"geo_id": str(geo_id), "now": now}
+        ).fetchone()
+
+        # If insert did not happen
+        if not field_id_result:
+            field_id_result = conn6.execute(
+                text("SELECT id FROM fields WHERE geo_id = :geo_id"),
+                {"geo_id": str(geo_id)}
+            ).fetchone()
+
+        if not field_id_result:
+            raise RuntimeError(f"Could not create or fetch field for geo_id={geo_id}")
+
+        field_id = field_id_result[0]
+
+        # 3. Link user to field (only if user_id exists in Node 6)
+        if user_id:
+            conn6.execute(
+                text("""
+                    INSERT INTO users_fields (user_id, field_id, field_name, created_at, updated_at)
+                    VALUES (:user_id, :field_id, :field_name, :now, :now)
+                    ON CONFLICT (user_id, field_id) DO NOTHING
+                """),
+                {
+                    "user_id": user_id,
+                    "field_id": field_id,
+                    "field_name": field_name or f"Field {geo_id}",
+                    "now": now
+                }
+            )
+            
+# def insert_user_field_by_registry_id(user_registry_id, geo_id, field_name=None):
+#     with node6_engine.begin() as conn6:
+#         # 1. Look up internal user ID from registry ID
+#         user_row = conn6.execute(
+#             text("SELECT id FROM users WHERE user_registry_id = :urid"),
+#             {"urid": str(user_registry_id)}
+#         ).fetchone()
+
+#         if not user_row:
+#             raise ValueError(f"User with registry_id {user_registry_id} not found in Node 6")
+
+#         user_id = user_row[0]
+
+#         now = datetime.datetime.utcnow()
+
+#         # 2. Insert field if missing
+#         field_id_result = conn6.execute(
+#             text("""
+#                 WITH ins AS (
+#                     INSERT INTO fields (geo_id, created_at, updated_at)
+#                     SELECT :geo_id, :now, :now
+#                     WHERE NOT EXISTS (
+#                         SELECT 1 FROM fields WHERE geo_id = :geo_id
+#                     )
+#                     RETURNING id
+#                 )
+#                 SELECT id FROM ins
+#                 UNION
+#                 SELECT id FROM fields WHERE geo_id = :geo_id
+#                 LIMIT 1;
+#             """),
+#             {"geo_id": str(geo_id), "now": now}
+#         ).fetchone()
+
+
+#         # If insert did not happen (conflict), fetch the existing field id
+#         if not field_id_result:
+#             field_id_result = conn6.execute(
+#                 text("SELECT id FROM fields WHERE geo_id = :geo_id"),
+#                 {"geo_id": str(geo_id)}
+#             ).fetchone()
+
+#         if not field_id_result:
+#             raise RuntimeError(f"Could not create or fetch field for geo_id={geo_id}")
+
+#         field_id = field_id_result[0]
+
+#         # 3. Link user to field
+#         conn6.execute(
+#             text("""
+#                 INSERT INTO users_fields (user_id, field_id, field_name, created_at, updated_at)
+#                 VALUES (:user_id, :field_id, :field_name, :now, :now)
+#                 ON CONFLICT (user_id, field_id) DO NOTHING
+#             """),
+#             {
+#                 "user_id": user_id,
+#                 "field_id": field_id,
+#                 "field_name": field_name or f"Field {geo_id}",
+#                 "now": now
+#             }
+#         )
 
 
 class Utils:
@@ -100,6 +231,62 @@ class Utils:
             return f(*args, **kwargs)
 
         return decorated
+    
+    # @staticmethod
+    # def token_required(f):
+    #     @wraps(f)
+    #     def decorated(*args, **kwargs):
+    #         auth_keys = request.headers.get('API-KEYS-AUTHENTICATION')
+    #         if auth_keys:
+    #             if not request.headers.get('API-KEY') or not request.headers.get('CLIENT-SECRET'):
+    #                 return jsonify({'message': 'API Key or Client Secret missing!!'}), 401
+    #             if Utils.verify_api_secret_keys(request.headers.get('API-KEY'), request.headers.get('CLIENT-SECRET')):
+    #                 return f(*args, **kwargs)
+    #             else:
+    #                 return jsonify({'message': 'Invalid API Key or Client Secret.'}), 401
+            
+    #         token = Utils.get_bearer_token()
+    #         if not token:
+    #             return jsonify({'message': 'No token provided'}), 401
+            
+    #         try:
+    #             decoded_token = jwt.decode(token, app.config['SECRET_KEY'], algorithms="HS256")
+    #             if not 'logout' in request.url:
+    #                 if not decoded_token.get('is_activated'):
+    #                     return jsonify({
+    #                         'message': 'User account not activated. Activate your account for the services.'
+    #                     }), 401
+    #             kwargs['current_user_id'] = decoded_token['sub']
+    #             return f(*args, **kwargs)
+    #         except jwt.ExpiredSignatureError:
+    #             return jsonify({'message': 'Token expired, refresh required', 'redirect': '/refresh'}), 401
+    #         except jwt.InvalidTokenError:
+    #             return jsonify({'message': 'Invalid token'}), 401
+
+    #     return decorated   
+
+    @staticmethod
+    def token_required_(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            token = Utils.get_bearer_token()
+            if not token:
+                return jsonify({'message': 'Missing token'}), 401
+
+            try:
+                decoded_token = jwt.decode(token, app.config['SECRET_KEY'], algorithms="HS256")
+                current_user_id = decoded_token.get("user_id") or decoded_token.get("sub")
+
+                if not current_user_id:
+                    return jsonify({'message': 'Invalid token, user_id missing'}), 401
+            except Exception as e:
+                # return jsonify({'message': f'Invalid token: {str(e)}'}), 401
+                return jsonify({'message': f'Invalid token: Short live token has expired'}), 401
+
+            return f(current_user_id, *args, **kwargs)
+
+        return decorated
+
 
     @staticmethod
     def records_s2_cell_tokens(s2_cell_tokens_dict: dict):
@@ -160,7 +347,58 @@ class Utils:
             raise e
 
     @staticmethod
-    def register_field_boundary(geo_id, indices, records_list_s2_cell_tokens_middle_table_dict, field_wkt, country,
+    def register_field_boundary(current_user_id ,geo_id, indices, records_list_s2_cell_tokens_middle_table_dict, field_wkt, country,
+                                boundary_type):
+        """
+        registering the geo id (field boundary) in the database
+        :param geo_id:
+        :param indices:
+        :param records_list_s2_cell_tokens_middle_table_dict:
+        :param field_wkt:
+        :param country:
+        :param boundary_type:
+        :return:
+        """
+        try:
+            geo_data = {'wkt': field_wkt}
+            authority_token = None
+            domain = Utils.get_domain_from_jwt()
+            if not domain:
+                domain = Utils.fetch_domain_from_client_secret()
+            if domain:
+                authority_token = Utils.get_authority_token_for_domain(domain)
+            geo_id_record = GeoIds(geo_id, geo_data, authority_token, country, boundary_type)
+            # creating the json encoded geo_data for different resolution levels
+            for res_level, s2_cell_tokens_records in records_list_s2_cell_tokens_middle_table_dict.items():
+                geo_data[res_level] = indices[res_level]
+                # linking the s2 cell token records with the geo id for the middle table
+                existing_records = S2CellTokens.query.filter(
+                    S2CellTokens.cell_token.in_(
+                        [s2_cell_tokens_record.cell_token for s2_cell_tokens_record in s2_cell_tokens_records]))
+                existing_cell_tokens = [existing_record.cell_token for existing_record in list(existing_records)]
+                ls_records_to_create = [s2_cell_tokens_record for s2_cell_tokens_record in s2_cell_tokens_records if
+                                        s2_cell_tokens_record.cell_token not in existing_cell_tokens]
+                geo_id_record.s2_cell_tokens = geo_id_record.s2_cell_tokens + ls_records_to_create + list(
+                    existing_records)
+            geo_data = json.dumps(geo_data)
+            geo_id_record.geo_data = geo_data
+
+            # populating the cell tokens, geo id and the middle table in the database
+            # bulk insertions for tables
+            # return_defaults as True sets the Id for the record to be inserted
+            db.session.bulk_save_objects([geo_id_record], return_defaults=True)
+            db.session.bulk_save_objects(geo_id_record.s2_cell_tokens, return_defaults=True)
+            ls_middle_table_records = [CellsGeosMiddle(geo_id=geo_id_record.id, cell_id=s2_cell_token_record.id) for
+                                       s2_cell_token_record in geo_id_record.s2_cell_tokens]
+            db.session.bulk_save_objects(ls_middle_table_records)
+            db.session.commit()
+            insert_user_field_by_registry_id(current_user_id, geo_id, str(geo_id_record.id) + str(geo_id))
+            return geo_data
+        except Exception as e:
+            raise e
+        
+    @staticmethod
+    def register_field_boundaries(geo_id, indices, records_list_s2_cell_tokens_middle_table_dict, field_wkt, country,
                                 boundary_type):
         """
         registering the geo id (field boundary) in the database
