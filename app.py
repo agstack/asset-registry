@@ -784,8 +784,8 @@ def register_field_boundaries_geojson(current_user_id):
         }), 400
 
 @app.route('/register-point', methods=['POST'])
-@Utils.token_required
-def register_point():
+@Utils.token_required_
+def register_point(current_user_id):
     """
     Registering a point against a Geo Id
     """
@@ -833,14 +833,14 @@ def register_point():
         # if geo id not registered, register it in the database
         if not geo_id_exists_wkt:
             geo_data_to_return = None
-            geo_data = Utils.register_field_boundary(geo_id, indices, records_list_s2_cell_tokens_middle_table_dict,
+            geo_data = Utils.register_field_boundary(current_user_id,geo_id, indices, records_list_s2_cell_tokens_middle_table_dict,
                                                      point_wkt, country, boundary_type)
             if s2_index and s2_indexes_to_remove != -1:
                 geo_data_to_return = Utils.get_specific_s2_index_geo_data(geo_data, s2_indexes_to_remove)
             return jsonify({
                 "message": "Point registered successfully.",
                 "Geo Id": geo_id,
-                "S2 Cell Tokens": geo_data_to_return,
+                # "S2 Cell Tokens": geo_data_to_return,
                 "Geo JSON": point_geo_json
             })
         else:
@@ -857,7 +857,129 @@ def register_point():
             'error': f'{e}'
         }), 400
 
+@app.route('/register-points-geojson', methods=['POST'])
+@Utils.token_required_
+def register_points_geojson(current_user_id):
+    try:
+        # 1. Check if a file was uploaded
+        if 'file' in request.files:
+            file = request.files.get('file')
+            data = json.loads(file.read().decode('utf-8'))
+        # 2. Fallback to raw JSON payload
+        elif request.data:
+            data = json.loads(request.data.decode('utf-8'))
+        else:
+            return jsonify({
+                'message': 'No GeoJSON file or payload provided'
+            }), 400
 
+        if 'type' not in data or data['type'] != 'FeatureCollection' or 'features' not in data:
+            return jsonify({
+                'message': 'Invalid GeoJSON FeatureCollection format'
+            }), 400
+
+        results = []
+        resolution_level = 30
+        
+        boundary_type = "manual"
+        if request.headers.get('AUTOMATED-FIELD') is not None:
+            automated_field = bool(int(request.headers.get('AUTOMATED-FIELD')))
+            if automated_field:
+                boundary_type = "automated"
+
+        for feature in data['features']:
+            try:
+                geometry_type = feature.get('geometry', {}).get('type')
+                
+                # We only process points in this specific API
+                if geometry_type != 'Point':
+                    results.append({
+                        "status": "skipped",
+                        "message": f"Geometry type {geometry_type} is not supported in bulk points API",
+                        "geo_json": feature
+                    })
+                    continue
+
+                point_wkt = Utils.geojson_to_wkt(feature)
+                
+                # set lat lng from geoJson first coordinate.
+                lat = feature['geometry']['coordinates'][1]
+                lng = feature['geometry']['coordinates'][0]
+                p = Point([lng, lat])
+                country = Utils.get_country_from_point(p)
+
+                # Check if specific s2_indexes were requested in properties
+                s2_index = feature.get('properties', {}).get('s2_index')
+                s2_indexes_to_remove = None
+                if s2_index:
+                    s2_index_to_fetch = [int(i) for i in str(s2_index).split(',')]
+                    s2_indexes_to_remove = Utils.get_s2_indexes_to_remove(s2_index_to_fetch)
+
+                # Get the Different resolution level indices for points
+                indices = {
+                    8: S2Service.wkt_to_cell_tokens(point_wkt, 8, point=True),
+                    13: S2Service.wkt_to_cell_tokens(point_wkt, 13, point=True),
+                    15: S2Service.wkt_to_cell_tokens(point_wkt, 15, point=True),
+                    18: S2Service.wkt_to_cell_tokens(point_wkt, 18, point=True),
+                    19: S2Service.wkt_to_cell_tokens(point_wkt, 19, point=True),
+                    20: S2Service.wkt_to_cell_tokens(point_wkt, 20, point=True),
+                    30: S2Service.wkt_to_cell_tokens(point_wkt, 30, point=True),
+                }
+
+                records_list_s2_cell_tokens_middle_table_dict = Utils.records_s2_cell_tokens(indices)
+                
+                # Generate the geo_id using L30 (specific to points)
+                geo_id = Utils.generate_geo_id(indices[30])
+                geo_id_l20 = Utils.generate_geo_id(indices[20])
+                
+                # lookup the database to see if exact point geo id already exists
+                geo_id_exists_wkt = Utils.lookup_geo_ids(geo_id)
+                
+                if not geo_id_exists_wkt:
+                    geo_data_to_return = None
+                    geo_data = Utils.register_field_boundary(
+                        current_user_id, geo_id, indices, 
+                        records_list_s2_cell_tokens_middle_table_dict,
+                        point_wkt, country, boundary_type
+                    )
+                    
+                    if s2_index and s2_indexes_to_remove != -1:
+                        geo_data_to_return = Utils.get_specific_s2_index_geo_data(geo_data, s2_indexes_to_remove)
+                    
+                    results.append({
+                        "status": "created",
+                        "message": "Point registered successfully.",
+                        "Geo Id": geo_id,
+                        # "S2 Cell Tokens": geo_data_to_return,
+                        "Geo JSON": feature
+                    })
+                else:
+                    results.append({
+                        "status": "exists",
+                        "message": "Point already registered.",
+                        "Geo Id": geo_id_l20,
+                        "Geo JSON requested": feature,
+                        "Geo JSON registered": Utils.get_geo_json(geo_id_exists_wkt)
+                    })
+
+            except Exception as point_error:
+                results.append({
+                    "status": "error",
+                    "message": str(point_error),
+                    "geo_json": feature
+                })
+
+        return jsonify({
+            "message": "Bulk point registration completed",
+            "results": results
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            'message': 'Bulk Register Points Error',
+            'error': str(e)
+        }), 400
+    
 # Deprecated!!!
 # @app.route('/fetch-overlapping-fields', methods=['POST'])
 # @Utils.token_required

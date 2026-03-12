@@ -93,6 +93,9 @@ paths:
     post:
       tags: [Field Registration (POST)]
       summary: 📂 Bulk Register Field Boundaries (GeoJSON File)
+      description: |
+        Bulk register Field Boundaries using a GeoJSON FeatureCollection. 
+        Supports both multipart file upload (`.geojson`) and raw JSON body.
       security: [{Bearer_Token: []}]
       requestBody:
         required: true
@@ -118,6 +121,64 @@ paths:
         '400':
           $ref: '#/components/responses/ErrorResponse'
 
+  /register-point:
+    post:
+      tags: [Field Registration (POST)]
+      summary: 🎯 Register a Point
+      security: [{Bearer_Token: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [wkt]
+              properties:
+                wkt: { type: string, example: "POINT(75.78209 30.90706)" }
+                s2_index: { type: string, example: "8,13" }
+      responses:
+        '200':
+          description: Point registered successfully
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /register-points-geojson:
+    post:
+      tags: [Field Registration (POST)]
+      summary: 📂 Bulk Register Points (GeoJSON)
+      description: |
+        Bulk register points using a GeoJSON FeatureCollection. 
+        Supports both multipart file upload (`.geojson`) and raw JSON body.
+      security: [{Bearer_Token: []}]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Upload a valid .geojson file containing Point features.
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeoJSONFeatureCollection'
+      responses:
+        '200':
+          description: Bulk point registration completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string, example: "Bulk point registration completed" }
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BulkPointResult'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
 
   # ==============================
   # SECTION 3: Field Retrieval & Queries
@@ -227,8 +288,45 @@ components:
           default: false
         s2_index:
           type: string
-          example: "8,13,15,18,19,20"
+          example: "8,13"
           description: Comma-separated list of resolution levels
+
+    GeoJSONFeatureCollection:
+      type: object
+      required: [type, features]
+      properties:
+        type:
+          type: string
+          enum: [FeatureCollection]
+        features:
+          type: array
+          items:
+            type: object
+            required: [geometry]
+            properties:
+              type: { type: string, example: "Feature" }
+              geometry:
+                type: object
+                required: [type, coordinates]
+                properties:
+                  type: { type: string, enum: [Point] }
+                  coordinates: 
+                    type: array
+                    items: { type: number }
+                    example: [75.78209, 30.90706]
+              properties:
+                type: object
+                description: Optional properties like s2_index
+                properties:
+                  s2_index: { type: string, example: "8,13" }
+
+    BulkPointResult:
+      type: object
+      properties:
+        status: { type: string, example: "created" }
+        message: { type: string, example: "Point registered successfully." }
+        "Geo Id": { type: string }
+        "Geo JSON": { type: object }
 
   responses:
     ErrorResponse:
