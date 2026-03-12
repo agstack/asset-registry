@@ -1,0 +1,135 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.77439,
+          29.92052
+        ]
+      },
+      "properties": {
+        "s2_index": "8,13"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          76.06006,
+          31.29629
+        ]
+      },
+      "properties": {
+        "s2_index": "8,13"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.46362,
+          30.41464
+        ]
+      },
+      "properties": {
+        "s2_index": "8,13"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          74.38657,
+          30.69048
+        ]
+      },
+      "properties": {
+        "s2_index": "8,13"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.73917,
+          31.94222
+        ]
+      },
+      "properties": {
+        "s2_index": "8,13"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          74.95277,
+          31.14446
+        ]
+      },
+      "properties": {
+        "s2_index": "8,13"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          76.53105,
+          30.06936
+        ]
+      },
+      "properties": {
+        "s2_index": "8,13"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.70693,
+          32.15691
+        ]
+      },
+      "properties": {
+        "s2_index": "8,13"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          74.91551,
+          31.85545
+        ]
+      },
+      "properties": {
+        "s2_index": "8,13"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          76.70714,
+          29.63126
+        ]
+      },
+      "properties": {
+        "s2_index": "8,13"
+      }
+    }
+  ]
+}

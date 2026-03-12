@@ -99,7 +99,107 @@ Registers the asset and also returns the **S2 Cell Tokens** that cover the geome
     }
     ```
 
-### 4. Handling Already Registered Boundaries
+### 4. Register a Point (WKT)
+
+Registers a specific coordinate point using Well-Known Text.
+
+* **Endpoint:** `POST https://api-ar.agstack.org/register-point`
+
+* **Example Request:**
+
+```json
+    curl -X POST https://api-ar.agstack.org/register-point \
+      -H 'Content-Type: application/json' \
+      -H 'Authorization: Bearer <access_token>' \
+      -d '{
+        "wkt": "POINT(-119.59308 35.47137)",
+        "s2_index": "8,13"
+      }'
+  ```
+* **Example Response:**
+
+```json
+    {
+      "Geo Id": "8c5c1d6ae4c50c574a05b44c0af6797c2001f518a35116c4642bd48edf769024",
+      "Geo JSON": {
+        "geometry": {
+          "coordinates": [74.78209, 30.90706],
+          "type": "Point"
+        },
+        "type": "Feature"
+      },
+      "message": "Point registered successfully."
+    }
+```
+
+### 5. Bulk Register Field Boundaries
+
+Registers multiple polygons from a GeoJSON file.Check Example geojson file "example_fields_geojson_format.geojson" to get the format.
+
+* **Endpoint:** `POST https://api-ar.agstack.org/register-field-boundaries-geojson`
+
+* **Example Request:**
+
+```json
+    curl --location 'https://api-ar.agstack.org/register-field-boundaries-geojson' \
+      --header 'Authorization: Bearer <access_token>' \
+      --data '@/path/to/test_plots.geojson'
+```
+
+* **Example Response:**
+
+```json
+    {
+      "message": "Field boundaries registered and geo-ids saved successfully",
+      "results": [
+        {
+          "geo_id": "ec98fbbf91e80a274a4481757fa2d20ead2f0029648a19a4a453d33f4078411b",
+          "status": "created",
+          "message": "Field Boundary registered successfully",
+          "s2_cell_tokens": {
+            "8": ["390ff"],
+            "13": ["390fed0c", "390feda4"],
+            "wkt": "POLYGON ((76.7794 30.7333, ...))"
+          },
+          "geo_json": { "type": "Feature", "geometry": { "type": "Polygon", ... } }
+        }
+      ]
+    }
+```
+### 6. Bulk Register Points
+
+Registers multiple points from a GeoJSON file.Check Example geojson file "example_points_geojson_format.geojson" to get the format.
+
+* **Endpoint:** `POST https://api-ar.agstack.org/register-points-geojson`
+
+* **Example Request:**
+
+```json
+    curl -X POST https://api-ar.agstack.org/register-points-geojson \
+      -H 'Authorization: Bearer <access_token>' \
+      -F 'file=@test_points.geojson'
+```
+
+* **Example Response:**
+
+```json
+    {
+      "message": "Bulk point registration completed",
+      "results": [
+        {
+          "Geo Id": "a28da121245cee30b3c901b00d62ba61855c82d0abca5dfb219ca16ac00aef2b",
+          "status": "created",
+          "message": "Point registered successfully.",
+          "Geo JSON": {
+            "type": "Feature",
+            "geometry": { "type": "Point", "coordinates": [75.77439, 29.92052] },
+            "properties": { "s2_index": "8,13" }
+          }
+        }
+      ]
+    }
+```
+### 7. Handling Already Registered Boundaries
 
 If you attempt to register a geometry that already exists in the system (based on the overlap `threshold`), the API will return the existing GeoID(s) instead of creating a new one.
 
@@ -134,7 +234,7 @@ If you attempt to register a geometry that already exists in the system (based o
 
 If a registration attempt fails due to an expired token, use the refresh flow.
 
-### 5. Refresh Access Token
+### 8. Refresh Access Token
 
 * **Endpoint:** `GET https://user-registry.agstack.org/refresh`
 * **Cookie:** The `refresh_token` must be sent as a cookie.
@@ -152,7 +252,7 @@ If a registration attempt fails due to an expired token, use the refresh flow.
     }
     ```
 
-### 6. Expired Token Error
+### 9. Expired Token Error
 
 If you see this response, proceed to **Step 5** immediately.
 
