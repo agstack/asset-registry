@@ -266,3 +266,8 @@ If you see this response, proceed to **Step 5** immediately.
 ### Swagger Documentation 
 
 * **Link:** [https://api-ar.agstack.org/swagger/](https://api-ar.agstack.org/swagger/)
+
+### Masked / Field View Demo Video link
+
+* **Link:** [Masked / Field View Demo](https://www.loom.com/share/597a574a95874f0fb15604890a80ce4f/)
+
